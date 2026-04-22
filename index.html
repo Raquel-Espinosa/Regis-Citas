@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEDIS/DOCK — Sistema de Citas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+:root{
+  --bg:#0b0e14;--bg2:#111520;--bg3:#171d2e;--bg4:#1e2840;
+  --border:#232d42;--border2:#2e3d5a;--border3:#3a4e72;
+  --text:#dde3f0;--text2:#7a8aaa;--text3:#445070;
+  --accent:#00e5b8;--accent2:#3b82f6;--warn:#f59e0b;
+  --danger:#ef4444;--success:#10b981;--purple:#a855f7;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;overflow-x:hidden;}
+
+/* ── LOGIN ── */
+#login-screen{
+  position:fixed;inset:0;background:var(--bg);z-index:1000;
+  display:flex;align-items:center;justify-content:center;
+}
+.login-box{
+  width:420px;padding:48px 40px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:16px;
+  position:relative;overflow:hidden;
+}
+.login-box::before{
+  content:'';position:absolute;top:-80px;right:-80px;
+  width:200px;height:200px;border-radius:50%;
+  background:radial-gradient(circle,rgba(0,229,184,0.08) 0%,transparent 70%);
+}
+.login-logo{
+  font-family:var(--mono);font-size:20px;font-weight:500;
+  color:var(--accent);margin-bottom:6px;
+}
+.login-sub{color:var(--text2);font-size:13px;margin-bottom:32px;}
+.login-label{font-size:11px;color:var(--text2);margin-bottom:6px;display:block;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;}
+.login-input{
+  width:100%;background:var(--bg3);border:1px solid var(--border2);
+  border-radius:8px;padding:11px 14px;color:var(--text);
+  font-family:var(--sans);font-size:13px;outline:none;
+  transition:border 0.2s;margin-bottom:16px;
+}
+.login-input:focus{border-color:var(--accent);}
+.login-btn{
+  width:100%;padding:12px;background:var(--accent);color:#000;
+  border:none;border-radius:8px;font-size:14px;font-weight:600;
+  cursor:pointer;font-family:var(--sans);transition:all 0.2s;
+  margin-top:4px;
+}
+.login-btn:hover{background:#00ccaa;}
+.login-err{color:var(--danger);font-size:12px;margin-top:8px;display:none;}
+.login-demo{margin-top:28px;padding-top:20px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px;}
+.demo-chip{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+  padding:8px 12px;cursor:pointer;transition:all 0.15s;
+}
+.demo-chip:hover{border-color:var(--border3);background:var(--bg4);}
+.demo-chip-label{font-size:11px;color:var(--text2);}
+.demo-chip-cred{font-family:var(--mono);font-size:11px;color:var(--accent);}
+
+/* ── TOPBAR ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;height:54px;background:var(--bg2);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;
+}
+.logo{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--accent);}
+.logo span{color:var(--text3);}
+.topbar-right{display:flex;align-items:center;gap:16px;}
+.user-pill{
+  display:flex;align-items:center;gap:8px;
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:8px;padding:5px 12px 5px 6px;cursor:pointer;
+  transition:all 0.15s;
+}
+.user-pill:hover{border-color:var(--border3);}
+.user-avatar{
+  width:26px;height:26px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:600;
+}
+.user-name{font-size:12px;font-weight:500;}
+.user-role{font-size:10px;color:var(--text3);font-family:var(--mono);}
+.logout-btn{
+  background:none;border:1px solid var(--border);border-radius:6px;
+  color:var(--text2);cursor:pointer;padding:5px 10px;font-size:12px;
+  font-family:var(--sans);transition:all 0.15s;
+}
+.logout-btn:hover{color:var(--danger);border-color:rgba(239,68,68,0.4);}
+
+/* ── LAYOUT ── */
+.app-layout{display:flex;min-height:calc(100vh - 54px);}
+.sidebar{
+  width:218px;background:var(--bg2);border-right:1px solid var(--border);
+  padding:12px 0;flex-shrink:0;
+}
+.sidebar-section{padding:4px 10px 14px;}
+.sidebar-label{
+  font-family:var(--mono);font-size:10px;color:var(--text3);
+  letter-spacing:1px;text-transform:uppercase;padding:0 10px 8px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;
+  border-radius:7px;cursor:pointer;color:var(--text2);font-size:13px;
+  transition:all 0.15s;user-select:none;position:relative;
+}
+.nav-item:hover{background:var(--bg3);color:var(--text);}
+.nav-item.active{background:rgba(0,229,184,0.08);color:var(--accent);border-left:2px solid var(--accent);padding-left:8px;}
+.nav-icon{font-size:14px;width:18px;text-align:center;opacity:0.8;}
+.nav-badge{
+  margin-left:auto;background:var(--warn);color:#000;
+  font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;
+  font-family:var(--mono);
+}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;}
+.page{display:none;padding:24px 28px;max-width:1240px;animation:fadeIn 0.2s ease;}
+.page.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+.page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;}
+.page-title{font-size:20px;font-weight:500;}
+.page-subtitle{font-size:12px;color:var(--text2);margin-top:3px;}
+
+/* ── CARDS ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;}
+.card-title{font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;}
+.card-sm{padding:14px 16px;}
+
+/* ── KPI ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.kpi-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+.kpi-label{font-size:10px;color:var(--text2);margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;}
+.kpi-value{font-size:28px;font-weight:300;font-family:var(--mono);line-height:1;}
+.kpi-delta{font-size:11px;color:var(--text3);margin-top:5px;}
+.green{color:var(--success);}.amber{color:var(--warn);}.red{color:var(--danger);}.blue{color:var(--accent2);}.teal{color:var(--accent);}
+
+/* ── TABLES ── */
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;padding:0 12px 10px;border-bottom:1px solid var(--border);}
+td{padding:11px 12px;border-bottom:1px solid var(--border);color:var(--text2);font-size:13px;}
+td:first-child{color:var(--text);font-weight:500;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,0.015);}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:500;font-family:var(--mono);}
+.badge-green{background:rgba(16,185,129,0.12);color:#10b981;}
+.badge-amber{background:rgba(245,158,11,0.12);color:#f59e0b;}
+.badge-red{background:rgba(239,68,68,0.12);color:#ef4444;}
+.badge-blue{background:rgba(59,130,246,0.12);color:#3b82f6;}
+.badge-gray{background:rgba(120,130,160,0.12);color:#7a8aaa;}
+.badge-teal{background:rgba(0,229,184,0.12);color:#00e5b8;}
+.badge-purple{background:rgba(168,85,247,0.12);color:#a855f7;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--sans);transition:all 0.15s;}
+.btn-primary{background:var(--accent);color:#000;}
+.btn-primary:hover{background:#00ccaa;}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2);}
+.btn-outline:hover{background:var(--bg3);color:var(--text);border-color:var(--border3);}
+.btn-danger{background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.25);}
+.btn-danger:hover{background:rgba(239,68,68,0.2);}
+.btn-success{background:rgba(16,185,129,0.1);color:var(--success);border:1px solid rgba(16,185,129,0.25);}
+.btn-success:hover{background:rgba(16,185,129,0.2);}
+.btn-blue{background:rgba(59,130,246,0.12);color:var(--accent2);border:1px solid rgba(59,130,246,0.25);}
+.btn-blue:hover{background:rgba(59,130,246,0.2);}
+.btn-sm{padding:5px 10px;font-size:11px;}
+
+/* ── FORMS ── */
+.form-group{margin-bottom:16px;}
+label{display:block;font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:500;text-transform:uppercase;letter-spacing:0.3px;}
+input,select,textarea{
+  width:100%;background:var(--bg3);border:1px solid var(--border2);
+  border-radius:7px;padding:9px 12px;color:var(--text);
+  font-family:var(--sans);font-size:13px;outline:none;transition:border 0.15s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+select option{background:var(--bg3);}
+textarea{resize:vertical;min-height:80px;}
+
+/* ── GRID HELPERS ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.four-col{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.sep{height:1px;background:var(--border);margin:18px 0;}
+
+/* ── CALENDAR ── */
+.cal-hdr{text-align:center;font-size:10px;color:var(--text3);font-family:var(--mono);padding-bottom:8px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+.cal-day{
+  aspect-ratio:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:flex-start;padding:5px 3px;border-radius:7px;
+  cursor:pointer;border:1px solid transparent;transition:all 0.15s;min-height:52px;
+}
+.cal-day:hover{border-color:var(--border2);background:var(--bg3);}
+.cal-day.today{border-color:var(--accent);}
+.cal-day.selected{background:rgba(0,229,184,0.1);border-color:var(--accent);}
+.cal-day.blocked{background:rgba(239,68,68,0.04);color:var(--text3);cursor:not-allowed;}
+.cal-day.blocked:hover{border-color:transparent;background:rgba(239,68,68,0.04);}
+.cal-day-num{font-weight:500;font-size:12px;}
+.cal-dots{display:flex;gap:3px;margin-top:3px;flex-wrap:wrap;justify-content:center;}
+.cal-dot{width:5px;height:5px;border-radius:50%;}
+
+/* ── SLOTS ── */
+.slots-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;}
+.slot{
+  padding:9px 6px;border-radius:7px;border:1px solid var(--border);
+  text-align:center;cursor:pointer;transition:all 0.15s;
+  font-size:11px;font-family:var(--mono);
+}
+.slot.available:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,229,184,0.05);}
+.slot.full{background:rgba(239,68,68,0.04);color:var(--text3);border-color:rgba(239,68,68,0.15);cursor:not-allowed;}
+.slot.selected{background:rgba(0,229,184,0.1);border-color:var(--accent);color:var(--accent);}
+.slot-cap{font-size:9px;color:var(--text3);margin-top:2px;}
+
+/* ── TOGGLE ── */
+.toggle{display:flex;align-items:center;gap:10px;}
+.toggle input[type=checkbox]{width:34px;height:18px;cursor:pointer;appearance:none;background:var(--bg3);border:1px solid var(--border2);border-radius:20px;transition:all 0.2s;position:relative;}
+.toggle input[type=checkbox]:checked{background:var(--accent);border-color:var(--accent);}
+.toggle input[type=checkbox]::after{content:'';position:absolute;width:12px;height:12px;background:#fff;border-radius:50%;top:2px;left:2px;transition:left 0.2s;}
+.toggle input[type=checkbox]:checked::after{left:18px;}
+.toggle label{font-size:13px;color:var(--text2);margin:0;cursor:pointer;text-transform:none;letter-spacing:0;}
+
+/* ── NOTIF ── */
+.notif{
+  position:fixed;top:64px;right:20px;background:var(--bg2);
+  border:1px solid var(--border);border-radius:10px;padding:14px 16px;
+  max-width:300px;z-index:500;display:none;animation:notifIn 0.3s ease;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+}
+.notif.show{display:block;}
+@keyframes notifIn{from{transform:translateX(16px);opacity:0}to{transform:none;opacity:1}}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:300;display:none;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:28px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+.modal-title{font-size:16px;font-weight:500;margin-bottom:20px;}
+
+/* ── STEP BAR ── */
+.step-bar{display:flex;gap:6px;margin-bottom:22px;}
+.step-seg{flex:1;height:3px;background:var(--border);border-radius:2px;transition:background 0.3s;}
+.step-seg.done{background:var(--accent);}
+.step-seg.cur{background:var(--accent2);}
+
+/* ── MISC ── */
+.actions{display:flex;gap:6px;}
+.icon-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:none;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:12px;transition:all 0.15s;}
+.icon-btn:hover{background:var(--bg3);color:var(--text);}
+.icon-btn.danger:hover{color:var(--danger);border-color:rgba(239,68,68,0.3);}
+.icon-btn.success:hover{color:var(--success);border-color:rgba(16,185,129,0.3);}
+.tag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:10px;font-family:var(--mono);background:var(--bg3);color:var(--text2);border:1px solid var(--border);}
+.empty{text-align:center;padding:36px;color:var(--text3);font-size:13px;}
+.info-box{background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.7;}
+.warn-box{background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.7;}
+.success-box{background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.7;}
+.progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:2px;transition:width 0.3s;}
+.code-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:20px;font-weight:500;color:var(--accent);letter-spacing:2px;text-align:center;}
+.chart-wrap{position:relative;width:100%;}
+.config-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+.config-row:last-child{border-bottom:none;}
+.email-preview{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:12px;line-height:1.9;color:var(--text2);}
+.email-preview strong{color:var(--text);}
+.dot-live{width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 6px var(--success);display:inline-block;}
+.tab-bar{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;}
+.tab{padding:8px 18px;cursor:pointer;font-size:12px;color:var(--text2);border-bottom:2px solid transparent;transition:all 0.15s;font-weight:500;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.provider-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px;}
+.provider-avatar{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ LOGIN SCREEN ══════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">CEDIS/DOCK</div>
+    <div class="login-sub">Sistema de Gestión de Citas de Proveedores</div>
+
+    <div class="form-group">
+      <label class="login-label">Correo electrónico</label>
+      <input class="login-input" type="email" id="login-email" placeholder="usuario@empresa.com" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label class="login-label">Contraseña</label>
+      <input class="login-input" type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div class="login-err" id="login-err">Correo o contraseña incorrectos. Intenta de nuevo.</div>
+    <button class="login-btn" onclick="doLogin()">Entrar al sistema →</button>
+
+    <div class="login-demo">
+      <div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-align:center;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Accesos de demostración</div>
+      <div class="demo-chip" onclick="fillLogin('admin@cedis.mx','admin123')">
+        <div><div class="demo-chip-label">Administrador CEDIS</div><div class="demo-chip-cred">admin@cedis.mx / admin123</div></div>
+        <span style="color:var(--text3);font-size:11px;">→</span>
+      </div>
+      <div class="demo-chip" onclick="fillLogin('sigma@proveedor.mx','sigma123')">
+        <div><div class="demo-chip-label">Proveedor — Sigma Alimentos</div><div class="demo-chip-cred">sigma@proveedor.mx / sigma123</div></div>
+        <span style="color:var(--text3);font-size:11px;">→</span>
+      </div>
+      <div class="demo-chip" onclick="fillLogin('nestle@proveedor.mx','nestle123')">
+        <div><div class="demo-chip-label">Proveedor — Nestlé MX</div><div class="demo-chip-cred">nestle@proveedor.mx / nestle123</div></div>
+        <span style="color:var(--text3);font-size:11px;">→</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ APP SHELL ══════════════ -->
+<div id="app" style="display:none;">
+<div class="topbar">
+  <div class="logo">CEDIS<span>/</span>DOCK</div>
+  <div class="topbar-right">
+    <div id="topbar-user" class="user-pill">
+      <div class="user-avatar" id="ua-avatar" style="background:rgba(0,229,184,0.15);color:var(--accent);">AD</div>
+      <div><div class="user-name" id="ua-name">Admin</div><div class="user-role" id="ua-role">ADMINISTRADOR</div></div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">Salir</button>
+  </div>
+</div>
+
+<div class="app-layout">
+<div class="sidebar" id="sidebar">
+  <div id="admin-nav">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Panel</div>
+      <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">◈</span> Dashboard</div>
+      <div class="nav-item" onclick="showPage('aprobacion')"><span class="nav-icon">◎</span> Aprobación <span class="nav-badge" id="pending-badge">3</span></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Configuración</div>
+      <div class="nav-item" onclick="showPage('proveedores')"><span class="nav-icon">▣</span> Proveedores</div>
+      <div class="nav-item" onclick="showPage('muelles')"><span class="nav-icon">◧</span> Muelles</div>
+      <div class="nav-item" onclick="showPage('horarios')"><span class="nav-icon">◷</span> Horarios</div>
+      <div class="nav-item" onclick="showPage('reglas')"><span class="nav-icon">◈</span> Reglas</div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Análisis</div>
+      <div class="nav-item" onclick="showPage('kpis')"><span class="nav-icon">◉</span> KPIs</div>
+      <div class="nav-item" onclick="showPage('historial')"><span class="nav-icon">◫</span> Historial</div>
+      <div class="nav-item" onclick="showPage('reportes')"><span class="nav-icon">◩</span> Reportes</div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Sistema</div>
+      <div class="nav-item" onclick="showPage('emails')"><span class="nav-icon">◁</span> Correos</div>
+      <div class="nav-item" onclick="showPage('integracion')"><span class="nav-icon">◊</span> Integración</div>
+    </div>
+  </div>
+  <div id="proveedor-nav" style="display:none;">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Mi Gestión</div>
+      <div class="nav-item active" onclick="showPage('p-agendar')"><span class="nav-icon">◈</span> Agendar Cita</div>
+      <div class="nav-item" onclick="showPage('p-miscitas')"><span class="nav-icon">◎</span> Mis Citas</div>
+      <div class="nav-item" onclick="showPage('p-perfil')"><span class="nav-icon">◧</span> Mi Perfil</div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ═══ ADMIN: DASHBOARD ═══ -->
+<div class="page active" id="page-dashboard">
+  <div class="page-header">
+    <div><div class="page-title">Dashboard Operativo</div><div class="page-subtitle">Martes 22 de Abril, 2026 · <span class="dot-live"></span> En vivo</div></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline btn-sm" onclick="syncSheets()">↻ Sync Sheets</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-nueva-cita')">+ Nueva Cita</button>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">Citas Hoy</div><div class="kpi-value blue">18</div><div class="kpi-delta">↑ 3 vs ayer</div></div>
+    <div class="kpi-card"><div class="kpi-label">Adherencia</div><div class="kpi-value green">87%</div><div class="kpi-delta">Meta ≥ 90%</div></div>
+    <div class="kpi-card"><div class="kpi-label">Dwell Time</div><div class="kpi-value amber">72 min</div><div class="kpi-delta">+12 vs estándar</div></div>
+    <div class="kpi-card"><div class="kpi-label">No-Shows</div><div class="kpi-value red">4</div><div class="kpi-delta">8.3% del mes</div></div>
+  </div>
+  <div class="two-col" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">Estado de Muelles — Ahora</div>
+      <div class="three-col" style="gap:10px;">
+        <div class="provider-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div><div style="font-weight:500;font-size:13px;">Secos</div><div style="font-size:10px;color:var(--text3);">4 muelles</div></div>
+            <div style="font-family:var(--mono);font-size:16px;color:var(--success);">75%</div>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:75%;background:var(--success)"></div></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px;">3/4 ocupados</div>
+        </div>
+        <div class="provider-card" style="border-color:rgba(239,68,68,0.3);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div><div style="font-weight:500;font-size:13px;">Refrigerados</div><div style="font-size:10px;color:var(--danger);">⚠ Saturado</div></div>
+            <div style="font-family:var(--mono);font-size:16px;color:var(--danger);">100%</div>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--danger)"></div></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px;">2/2 ocupados</div>
+        </div>
+        <div class="provider-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div><div style="font-weight:500;font-size:13px;">Granel</div><div style="font-size:10px;color:var(--text3);">2 muelles</div></div>
+            <div style="font-family:var(--mono);font-size:16px;color:var(--accent);">50%</div>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:50%;background:var(--accent)"></div></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px;">1/2 ocupados</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Próximas Citas</div>
+      <table>
+        <thead><tr><th>Hora</th><th>Proveedor</th><th>Muelle</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr><td style="font-family:var(--mono);">09:00</td><td>Sigma Alimentos</td><td>S-01</td><td><span class="badge badge-teal">En Muelle</span></td></tr>
+          <tr><td style="font-family:var(--mono);">10:00</td><td>Nestlé MX</td><td>R-01</td><td><span class="badge badge-green">Confirmada</span></td></tr>
+          <tr><td style="font-family:var(--mono);">11:00</td><td>Bimbo</td><td>S-02</td><td><span class="badge badge-amber">En Tránsito</span></td></tr>
+          <tr><td style="font-family:var(--mono);">12:00</td><td>La Costeña</td><td>S-03</td><td><span class="badge badge-gray">Pendiente</span></td></tr>
+          <tr><td style="font-family:var(--mono);">13:00</td><td>Maseca</td><td>G-01</td><td><span class="badge badge-gray">Pendiente</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ADMIN: APROBACIÓN ═══ -->
+<div class="page" id="page-aprobacion">
+  <div class="page-header">
+    <div><div class="page-title">Panel de Aprobación</div><div class="page-subtitle">Solicitudes pendientes de revisión</div></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-success btn-sm" onclick="aprobarTodas()">✓ Aprobar todas</button>
+    </div>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Folio</th><th>Proveedor</th><th>PO</th><th>Fecha/Hora</th><th>Tipo</th><th>Unidad</th><th>Pallets</th><th>Acciones</th></tr></thead>
+      <tbody id="aprobacion-tbody">
+        <tr id="row-089">
+          <td><span class="tag">#CIT-089</span></td><td>Sabritas</td><td style="font-family:var(--mono);">PO-44521</td><td style="font-family:var(--mono);">25 Abr 10:00</td><td><span class="badge badge-blue">Secos</span></td><td>Torton</td><td>14</td>
+          <td><div class="actions">
+            <button class="icon-btn success" onclick="aprobar('row-089','#CIT-089','sabritas@proveedor.mx')" title="Aprobar">✓</button>
+            <button class="icon-btn" onclick="openModal('modal-reprogramar')" title="Reprogramar">↻</button>
+            <button class="icon-btn danger" onclick="rechazar('row-089','#CIT-089')" title="Rechazar">✕</button>
+          </div></td>
+        </tr>
+        <tr id="row-090">
+          <td><span class="tag">#CIT-090</span></td><td>Lala Lácteos</td><td style="font-family:var(--mono);">PO-44598</td><td style="font-family:var(--mono);">25 Abr 11:00</td><td><span class="badge badge-teal">Refrigerados</span></td><td>Tráiler 53'</td><td>22</td>
+          <td><div class="actions">
+            <button class="icon-btn success" onclick="aprobar('row-090','#CIT-090','lala@proveedor.mx')" title="Aprobar">✓</button>
+            <button class="icon-btn" onclick="openModal('modal-reprogramar')" title="Reprogramar">↻</button>
+            <button class="icon-btn danger" onclick="rechazar('row-090','#CIT-090')" title="Rechazar">✕</button>
+          </div></td>
+        </tr>
+        <tr id="row-091">
+          <td><span class="tag">#CIT-091</span></td><td>Maseca / Gruma</td><td style="font-family:var(--mono);">PO-44612</td><td style="font-family:var(--mono);">26 Abr 09:00</td><td><span class="badge badge-amber">Granel</span></td><td>Torton</td><td>18</td>
+          <td><div class="actions">
+            <button class="icon-btn success" onclick="aprobar('row-091','#CIT-091','maseca@proveedor.mx')" title="Aprobar">✓</button>
+            <button class="icon-btn" onclick="openModal('modal-reprogramar')" title="Reprogramar">↻</button>
+            <button class="icon-btn danger" onclick="rechazar('row-091','#CIT-091')" title="Rechazar">✕</button>
+          </div></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ ADMIN: PROVEEDORES ═══ -->
+<div class="page" id="page-proveedores">
+  <div class="page-header">
+    <div><div class="page-title">Gestión de Proveedores</div><div class="page-subtitle">Alta, edición y control de acceso de proveedores</div></div>
+    <button class="btn btn-primary" onclick="openModal('modal-nuevo-proveedor')">+ Alta Proveedor</button>
+  </div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);">
+    <div class="kpi-card"><div class="kpi-label">Total Proveedores</div><div class="kpi-value blue">24</div><div class="kpi-delta">activos en el sistema</div></div>
+    <div class="kpi-card"><div class="kpi-label">Con Acceso Web</div><div class="kpi-value green">18</div><div class="kpi-delta">con credenciales activas</div></div>
+    <div class="kpi-card"><div class="kpi-label">Citas Este Mes</div><div class="kpi-value teal">56</div><div class="kpi-delta">entre todos los proveedores</div></div>
+    <div class="kpi-card"><div class="kpi-label">Sin Acceso</div><div class="kpi-value amber">6</div><div class="kpi-delta">pendientes de activar</div></div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
+    <input placeholder="Buscar proveedor, RFC o correo..." style="max-width:320px;" oninput="filterProveedores(this.value)">
+    <select style="width:auto;">
+      <option>Todos los tipos</option><option>Secos</option><option>Refrigerados</option><option>Granel</option>
+    </select>
+    <select style="width:auto;">
+      <option>Todos los estados</option><option>Activo</option><option>Inactivo</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <table id="proveedores-table">
+      <thead><tr><th>Proveedor</th><th>RFC</th><th>Contacto</th><th>Tipo Mercancía</th><th>Citas/Mes</th><th>Adherencia</th><th>Acceso</th><th>Acciones</th></tr></thead>
+      <tbody id="proveedores-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ ADMIN: MUELLES ═══ -->
+<div class="page" id="page-muelles">
+  <div class="page-header">
+    <div><div class="page-title">Gestión de Muelles</div><div class="page-subtitle">Capacidad y configuración por tipo</div></div>
+    <button class="btn btn-primary" onclick="openModal('modal-add-muelle')">+ Agregar Muelle</button>
+  </div>
+  <div class="three-col" style="margin-bottom:18px;">
+    <div class="card" style="border-color:rgba(59,130,246,0.25);">
+      <div class="card-title">Secos</div>
+      <div style="font-size:28px;font-weight:300;font-family:var(--mono);color:var(--accent2);">4</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:3px;">muelles operativos</div>
+      <div class="sep"></div>
+      <div class="two-col" style="gap:8px;">
+        <div style="background:var(--bg3);border-radius:7px;padding:8px;text-align:center;"><div style="font-size:9px;color:var(--text3);margin-bottom:3px;">CAP/SLOT</div><div style="font-family:var(--mono);font-size:13px;">2 trailers</div></div>
+        <div style="background:var(--bg3);border-radius:7px;padding:8px;text-align:center;"><div style="font-size:9px;color:var(--text3);margin-bottom:3px;">SKU MAX</div><div style="font-family:var(--mono);font-size:13px;">500</div></div>
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(0,229,184,0.25);">
+      <div class="card-title">Refrigerados</div>
+      <div style="font-size:28px;font-weight:300;font-family:var(--mono);color:var(--accent);">2</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:3px;">muelles operativos</div>
+      <div class="sep"></div>
+      <div class="two-col" style="gap:8px;">
+        <div style="background:var(--bg3);border-radius:7px;padding:8px;text-align:center;"><div style="font-size:9px;color:var(--text3);margin-bottom:3px;">CAP/SLOT</div><div style="font-family:var(--mono);font-size:13px;">1 trailer</div></div>
+        <div style="background:var(--bg3);border-radius:7px;padding:8px;text-align:center;"><div style="font-size:9px;color:var(--text3);margin-bottom:3px;">TEMP</div><div style="font-family:var(--mono);font-size:13px;">-2°C</div></div>
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(245,158,11,0.25);">
+      <div class="card-title">Granel</div>
+      <div style="font-size:28px;font-weight:300;font-family:var(--mono);color:var(--warn);">2</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:3px;">muelles operativos</div>
+      <div class="sep"></div>
+      <div class="two-col" style="gap:8px;">
+        <div style="background:var(--bg3);border-radius:7px;padding:8px;text-align:center;"><div style="font-size:9px;color:var(--text3);margin-bottom:3px;">CAP/SLOT</div><div style="font-family:var(--mono);font-size:13px;">1 torton</div></div>
+        <div style="background:var(--bg3);border-radius:7px;padding:8px;text-align:center;"><div style="font-size:9px;color:var(--text3);margin-bottom:3px;">PALLETS</div><div style="font-family:var(--mono);font-size:13px;">24 max</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Listado de Muelles</div>
+    <table>
+      <thead><tr><th>ID</th><th>Nombre</th><th>Tipo</th><th>Capacidad</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>
+        <tr><td>S-01</td><td>Muelle Norte 1</td><td><span class="badge badge-blue">Secos</span></td><td>2 unidades/slot</td><td><span class="badge badge-green">Activo</span></td><td><div class="actions"><button class="icon-btn">✎</button><button class="icon-btn danger">✕</button></div></td></tr>
+        <tr><td>S-02</td><td>Muelle Norte 2</td><td><span class="badge badge-blue">Secos</span></td><td>2 unidades/slot</td><td><span class="badge badge-green">Activo</span></td><td><div class="actions"><button class="icon-btn">✎</button><button class="icon-btn danger">✕</button></div></td></tr>
+        <tr><td>R-01</td><td>Cámara Fría A</td><td><span class="badge badge-teal">Refrigerados</span></td><td>1 unidad/slot</td><td><span class="badge badge-green">Activo</span></td><td><div class="actions"><button class="icon-btn">✎</button><button class="icon-btn danger">✕</button></div></td></tr>
+        <tr><td>R-02</td><td>Cámara Fría B</td><td><span class="badge badge-teal">Refrigerados</span></td><td>1 unidad/slot</td><td><span class="badge badge-green">Activo</span></td><td><div class="actions"><button class="icon-btn">✎</button><button class="icon-btn danger">✕</button></div></td></tr>
+        <tr><td>G-01</td><td>Granel Central 1</td><td><span class="badge badge-amber">Granel</span></td><td>1 torton/slot</td><td><span class="badge badge-green">Activo</span></td><td><div class="actions"><button class="icon-btn">✎</button><button class="icon-btn danger">✕</button></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ ADMIN: HORARIOS ═══ -->
+<div class="page" id="page-horarios">
+  <div class="page-header">
+    <div><div class="page-title">Configuración de Horarios</div><div class="page-subtitle">Ventanas de atención y time slots</div></div>
+    <button class="btn btn-primary" onclick="saveHorarios()">Guardar cambios</button>
+  </div>
+  <div class="two-col" style="margin-bottom:18px;">
+    <div class="card">
+      <div class="card-title">Parámetros de Slots</div>
+      <div class="form-group"><label>Duración del slot</label><select><option selected>60 minutos</option><option>30 minutos</option><option>90 minutos</option></select></div>
+      <div class="form-group"><label>Hora de inicio</label><input type="time" value="08:00"></div>
+      <div class="form-group"><label>Hora de cierre</label><input type="time" value="18:00"></div>
+      <div class="form-group"><label>Límite cancelación (horas)</label><input type="number" value="24"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Días Operativos</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="toggle"><input type="checkbox" id="d1" checked><label for="d1">Lunes</label></div>
+        <div class="toggle"><input type="checkbox" id="d2" checked><label for="d2">Martes</label></div>
+        <div class="toggle"><input type="checkbox" id="d3" checked><label for="d3">Miércoles</label></div>
+        <div class="toggle"><input type="checkbox" id="d4" checked><label for="d4">Jueves</label></div>
+        <div class="toggle"><input type="checkbox" id="d5" checked><label for="d5">Viernes</label></div>
+        <div class="toggle"><input type="checkbox" id="d6"><label for="d6">Sábado</label></div>
+        <div class="toggle"><input type="checkbox" id="d7"><label for="d7">Domingo</label></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ADMIN: REGLAS ═══ -->
+<div class="page" id="page-reglas">
+  <div class="page-header">
+    <div><div class="page-title">Reglas de Negocio</div><div class="page-subtitle">Bloqueos automáticos y días festivos</div></div>
+    <button class="btn btn-primary" onclick="openModal('modal-add-regla')">+ Nueva Regla</button>
+  </div>
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">Días Festivos 2026 — Bloqueados</div>
+    <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:4px;">
+      <span class="tag" style="color:var(--danger);">✕ 1 Ene</span><span class="tag" style="color:var(--danger);">✕ 5 Feb</span><span class="tag" style="color:var(--danger);">✕ 21 Mar</span><span class="tag" style="color:var(--danger);">✕ 2 Abr</span><span class="tag" style="color:var(--danger);">✕ 3 Abr</span><span class="tag" style="color:var(--danger);">✕ 1 May</span><span class="tag" style="color:var(--danger);">✕ 16 Sep</span><span class="tag" style="color:var(--danger);">✕ 2 Nov</span><span class="tag" style="color:var(--danger);">✕ 25 Dic</span>
+      <button class="tag" style="cursor:pointer;border-style:dashed;" onclick="openModal('modal-add-regla')">+ Agregar</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Bloqueos Especiales</div>
+    <table>
+      <thead><tr><th>Nombre</th><th>Tipo</th><th>Fechas</th><th>Alcance</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>
+        <tr><td>Inventario Q2</td><td><span class="badge badge-amber">Inventario</span></td><td style="font-family:var(--mono);">28-30 Jun</td><td>Todos</td><td><span class="badge badge-green">Activo</span></td><td><div class="actions"><button class="icon-btn">✎</button><button class="icon-btn danger">✕</button></div></td></tr>
+        <tr><td>Peak Navideño</td><td><span class="badge badge-blue">Restricción</span></td><td style="font-family:var(--mono);">15-31 Dic</td><td>Solo Secos</td><td><span class="badge badge-gray">Programado</span></td><td><div class="actions"><button class="icon-btn">✎</button><button class="icon-btn danger">✕</button></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ ADMIN: KPIs ═══ -->
+<div class="page" id="page-kpis">
+  <div class="page-header">
+    <div><div class="page-title">KPIs de Gestión</div><div class="page-subtitle">Abril 2026</div></div>
+    <div style="display:flex;gap:8px;">
+      <select style="width:auto;font-size:12px;padding:6px 10px;"><option>Abril 2026</option><option>Marzo 2026</option></select>
+      <button class="btn btn-outline btn-sm" onclick="exportarReporte('kpi')">↓ Exportar PDF</button>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">Adherencia Prov.</div><div class="kpi-value green">87.3%</div><div class="kpi-delta">48/55 citas a tiempo</div></div>
+    <div class="kpi-card"><div class="kpi-label">Dwell Time Prom.</div><div class="kpi-value amber">72 min</div><div class="kpi-delta">Estándar 60 min</div></div>
+    <div class="kpi-card"><div class="kpi-label">Utilización Muelles</div><div class="kpi-value blue">68.4%</div><div class="kpi-delta">Óptimo 70-85%</div></div>
+    <div class="kpi-card"><div class="kpi-label">No-Show Rate</div><div class="kpi-value red">8.3%</div><div class="kpi-delta">4 citas perdidas</div></div>
+  </div>
+  <div class="two-col" style="margin-bottom:16px;">
+    <div class="card"><div class="card-title">Adherencia por Proveedor</div><div class="chart-wrap" style="height:240px;"><canvas id="chart-adherencia" role="img" aria-label="Adherencia por proveedor">Datos de adherencia.</canvas></div></div>
+    <div class="card"><div class="card-title">Dock Dwell Time — 4 Semanas</div><div class="chart-wrap" style="height:240px;"><canvas id="chart-dwell" role="img" aria-label="Dwell time por semana">Tiempo en muelle.</canvas></div></div>
+  </div>
+  <div class="two-col">
+    <div class="card"><div class="card-title">Utilización por Hora</div><div class="chart-wrap" style="height:200px;"><canvas id="chart-util" role="img" aria-label="Utilización por hora">Utilización horaria.</canvas></div></div>
+    <div class="card"><div class="card-title">Distribución No-Shows</div><div class="chart-wrap" style="height:200px;"><canvas id="chart-noshow" role="img" aria-label="No-shows por tipo">No-shows por categoría.</canvas></div></div>
+  </div>
+</div>
+
+<!-- ═══ ADMIN: HISTORIAL ═══ -->
+<div class="page" id="page-historial">
+  <div class="page-header">
+    <div><div class="page-title">Historial de Citas</div><div class="page-subtitle">Registro completo</div></div>
+    <div style="display:flex;gap:8px;">
+      <input placeholder="Buscar..." style="width:200px;">
+      <button class="btn btn-outline btn-sm" onclick="exportarCSV()">↓ Exportar CSV</button>
+    </div>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Folio</th><th>Proveedor</th><th>PO</th><th>Fecha</th><th>Muelle</th><th>Llegada Real</th><th>Dwell</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag">#CIT-085</span></td><td>Sigma Alimentos</td><td style="font-family:var(--mono);">PO-44490</td><td>20 Abr 09:00</td><td>S-01</td><td style="font-family:var(--mono);">09:05</td><td style="font-family:var(--mono);">58 min</td><td><span class="badge badge-green">Puntual</span></td></tr>
+        <tr><td><span class="tag">#CIT-086</span></td><td>Nestlé MX</td><td style="font-family:var(--mono);">PO-44495</td><td>20 Abr 11:00</td><td>R-01</td><td style="font-family:var(--mono);">11:23</td><td style="font-family:var(--mono);">82 min</td><td><span class="badge badge-amber">Tardío</span></td></tr>
+        <tr><td><span class="tag">#CIT-087</span></td><td>Grupo LALA</td><td style="font-family:var(--mono);">PO-44501</td><td>21 Abr 10:00</td><td>R-02</td><td style="font-family:var(--mono);">—</td><td style="font-family:var(--mono);">—</td><td><span class="badge badge-red">No-Show</span></td></tr>
+        <tr><td><span class="tag">#CIT-088</span></td><td>Bimbo</td><td style="font-family:var(--mono);">PO-44510</td><td>22 Abr 09:00</td><td>S-02</td><td style="font-family:var(--mono);">08:55</td><td style="font-family:var(--mono);">61 min</td><td><span class="badge badge-green">Puntual</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ ADMIN: REPORTES ═══ -->
+<div class="page" id="page-reportes">
+  <div class="page-header">
+    <div><div class="page-title">Exportación de Reportes</div><div class="page-subtitle">Genera y descarga reportes en PDF o CSV</div></div>
+  </div>
+  <div class="three-col" style="margin-bottom:20px;">
+    <div class="card">
+      <div style="font-size:28px;margin-bottom:12px;">📊</div>
+      <div style="font-weight:500;margin-bottom:6px;">Reporte de KPIs</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:16px;">Adherencia, Dwell Time, Utilización y No-Shows del periodo seleccionado.</div>
+      <select style="margin-bottom:10px;"><option>Abril 2026</option><option>Marzo 2026</option><option>Q1 2026</option></select>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="exportarReporte('kpi')">PDF</button>
+        <button class="btn btn-outline btn-sm" style="flex:1;" onclick="exportarCSV()">CSV</button>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-size:28px;margin-bottom:12px;">📋</div>
+      <div style="font-weight:500;margin-bottom:6px;">Reporte de Citas</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:16px;">Listado completo de citas con estado, muelle asignado y tiempos reales.</div>
+      <select style="margin-bottom:10px;"><option>Última semana</option><option>Último mes</option><option>Último trimestre</option></select>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="exportarReporte('citas')">PDF</button>
+        <button class="btn btn-outline btn-sm" style="flex:1;" onclick="exportarCSV()">CSV</button>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-size:28px;margin-bottom:12px;">🏭</div>
+      <div style="font-weight:500;margin-bottom:6px;">Reporte de Proveedores</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:16px;">Ranking de cumplimiento, frecuencia de visitas y tiempos por proveedor.</div>
+      <select style="margin-bottom:10px;"><option>Todos los proveedores</option><option>Solo activos</option></select>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="exportarReporte('proveedores')">PDF</button>
+        <button class="btn btn-outline btn-sm" style="flex:1;" onclick="exportarCSV()">CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Vista Previa — Reporte KPIs Abril 2026</div>
+    <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+      <div style="background:var(--bg3);padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:16px;font-weight:500;">CEDIS — Reporte de KPIs</div>
+          <div style="font-size:12px;color:var(--text2);">Periodo: Abril 2026 · Generado: 22/04/2026</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text3);">CONFIDENCIAL</div>
+      </div>
+      <div style="padding:20px 24px;">
+        <div class="four-col" style="margin-bottom:18px;">
+          <div style="text-align:center;padding:12px;background:var(--bg3);border-radius:8px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">ADHERENCIA</div><div style="font-size:22px;font-family:var(--mono);color:var(--success);">87.3%</div></div>
+          <div style="text-align:center;padding:12px;background:var(--bg3);border-radius:8px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">DWELL AVG</div><div style="font-size:22px;font-family:var(--mono);color:var(--warn);">72 min</div></div>
+          <div style="text-align:center;padding:12px;background:var(--bg3);border-radius:8px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">UTILIZACIÓN</div><div style="font-size:22px;font-family:var(--mono);color:var(--accent2);">68.4%</div></div>
+          <div style="text-align:center;padding:12px;background:var(--bg3);border-radius:8px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">NO-SHOW</div><div style="font-size:22px;font-family:var(--mono);color:var(--danger);">8.3%</div></div>
+        </div>
+        <table style="font-size:12px;">
+          <thead><tr><th>Proveedor</th><th>Citas</th><th>A Tiempo</th><th>Tardías</th><th>No-Show</th><th>Adherencia</th><th>Dwell Prom.</th></tr></thead>
+          <tbody>
+            <tr><td>Sigma Alimentos</td><td>8</td><td>8</td><td>0</td><td>0</td><td><span class="badge badge-green">96%</span></td><td>58 min</td></tr>
+            <tr><td>Nestlé MX</td><td>6</td><td>5</td><td>1</td><td>0</td><td><span class="badge badge-green">92%</span></td><td>65 min</td></tr>
+            <tr><td>Grupo LALA</td><td>5</td><td>4</td><td>0</td><td>1</td><td><span class="badge badge-amber">80%</span></td><td>78 min</td></tr>
+            <tr><td>Bimbo</td><td>7</td><td>6</td><td>1</td><td>0</td><td><span class="badge badge-amber">86%</span></td><td>70 min</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ADMIN: CORREOS ═══ -->
+<div class="page" id="page-emails">
+  <div class="page-header">
+    <div><div class="page-title">Configuración de Correos</div><div class="page-subtitle">Integración EmailJS — notificaciones automáticas</div></div>
+    <button class="btn btn-primary" onclick="saveEmailConfig()">Guardar config</button>
+  </div>
+
+  <div class="two-col" style="margin-bottom:18px;">
+    <div class="card">
+      <div class="card-title">Credenciales EmailJS</div>
+      <div class="info-box" style="margin-bottom:14px;">
+        EmailJS permite enviar correos desde el navegador sin backend. Regístrate en <strong>emailjs.com</strong>, crea un servicio de correo (Gmail, Outlook, SMTP) y copia tus credenciales aquí.
+      </div>
+      <div class="form-group"><label>Public Key (User ID)</label><input id="ejs-pubkey" placeholder="user_XXXXXXXXXXXXXXXX" value="user_demo_key_123"></div>
+      <div class="form-group"><label>Service ID</label><input id="ejs-service" placeholder="service_XXXXXXX" value="service_cedis_mx"></div>
+      <div class="form-group"><label>Correo remitente (From)</label><input id="ejs-from" placeholder="noreply@cedis.mx" value="noreply@cedis.mx"></div>
+      <div class="form-group"><label>Nombre remitente</label><input id="ejs-name" placeholder="CEDIS — Sistema de Citas" value="CEDIS Sistema de Citas"></div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="testEmail()">✉ Enviar prueba</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="saveEmailConfig()">Guardar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Templates de Correo (EmailJS)</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="config-row">
+          <div><div style="font-weight:500;font-size:13px;">Solicitud enviada</div><div style="font-size:11px;color:var(--text3);">template_solicitud</div></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span class="badge badge-green">Activo</span><button class="btn btn-outline btn-sm" onclick="prevEmail('solicitud')">Vista previa</button></div>
+        </div>
+        <div class="config-row">
+          <div><div style="font-weight:500;font-size:13px;">Cita aprobada</div><div style="font-size:11px;color:var(--text3);">template_aprobacion</div></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span class="badge badge-green">Activo</span><button class="btn btn-outline btn-sm" onclick="prevEmail('aprobacion')">Vista previa</button></div>
+        </div>
+        <div class="config-row">
+          <div><div style="font-weight:500;font-size:13px;">Cita rechazada</div><div style="font-size:11px;color:var(--text3);">template_rechazo</div></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span class="badge badge-green">Activo</span><button class="btn btn-outline btn-sm" onclick="prevEmail('rechazo')">Vista previa</button></div>
+        </div>
+        <div class="config-row">
+          <div><div style="font-weight:500;font-size:13px;">Recordatorio 24h</div><div style="font-size:11px;color:var(--text3);">template_recordatorio</div></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span class="badge badge-amber">Pendiente</span><button class="btn btn-outline btn-sm">Configurar</button></div>
+        </div>
+        <div class="config-row">
+          <div><div style="font-weight:500;font-size:13px;">Acceso nuevo proveedor</div><div style="font-size:11px;color:var(--text3);">template_bienvenida</div></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span class="badge badge-green">Activo</span><button class="btn btn-outline btn-sm" onclick="prevEmail('bienvenida')">Vista previa</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="email-preview-card" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div class="card-title" style="margin:0;">Vista Previa — <span id="email-preview-title"></span></div>
+      <button class="icon-btn" onclick="document.getElementById('email-preview-card').style.display='none'">✕</button>
+    </div>
+    <div class="email-preview" id="email-preview-body"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title">Código de Integración EmailJS</div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;font-family:var(--mono);font-size:11px;color:#a8c4e0;line-height:1.9;overflow-x:auto;">
+      <span style="color:var(--text3);">// 1. Cargar SDK en tu index.html</span><br>
+      &lt;script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"&gt;&lt;/script&gt;<br><br>
+      <span style="color:var(--text3);">// 2. Inicializar con tu Public Key</span><br>
+      emailjs.init('<span style="color:var(--accent);">TU_PUBLIC_KEY</span>');<br><br>
+      <span style="color:var(--text3);">// 3. Enviar notificación de aprobación</span><br>
+      emailjs.send('<span style="color:var(--accent);">service_cedis</span>', '<span style="color:var(--warn);">template_aprobacion</span>', &#123;<br>
+      &nbsp;&nbsp;to_email: proveedor.email,<br>
+      &nbsp;&nbsp;to_name: proveedor.nombre,<br>
+      &nbsp;&nbsp;folio_cita: '#CIT-092',<br>
+      &nbsp;&nbsp;fecha: '25 Abr 2026 · 11:00 hrs',<br>
+      &nbsp;&nbsp;muelle: 'S-01',<br>
+      &nbsp;&nbsp;codigo_acceso: 'ACC-7842',<br>
+      &nbsp;&nbsp;link_reagendar: 'https://cedis.app/reagendar/CIT-092'<br>
+      &#125;);
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ADMIN: INTEGRACIÓN ═══ -->
+<div class="page" id="page-integracion">
+  <div class="page-header">
+    <div><div class="page-title">Integración de Sistemas</div><div class="page-subtitle">Google Sheets · GitHub · Apps Script</div></div>
+  </div>
+  <div class="two-col" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">Google Sheets</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <div class="dot-live"></div><div style="font-size:13px;font-weight:500;">Conectado</div>
+      </div>
+      <div style="font-size:12px;color:var(--text2);line-height:2.2;">
+        <div>Hoja: <span style="color:var(--accent);font-family:var(--mono);">CEDIS_Citas_2026</span></div>
+        <div>Tabs: Citas · Proveedores · Muelles · KPIs · Usuarios</div>
+        <div>Última sync: hace 2 min · 1,247 registros</div>
+      </div>
+      <div class="sep"></div>
+      <button class="btn btn-primary" style="width:100%;" onclick="syncSheets()">↻ Sincronizar ahora</button>
+    </div>
+    <div class="card">
+      <div class="card-title">GitHub Pages</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <div class="dot-live"></div><div style="font-size:13px;font-weight:500;">Deploy activo</div>
+      </div>
+      <div style="font-size:12px;color:var(--text2);line-height:2.2;">
+        <div>Repo: <span style="color:var(--accent);font-family:var(--mono);">mi-empresa/cedis-citas</span></div>
+        <div>Branch: <span style="font-family:var(--mono);">main</span></div>
+        <div>URL: <span style="color:var(--accent2);">mi-empresa.github.io/cedis-citas</span></div>
+      </div>
+      <div class="sep"></div>
+      <button class="btn btn-outline" style="width:100%;">↗ Ver en GitHub</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Apps Script — API REST para Sheets</div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;font-family:var(--mono);font-size:11px;color:#a8c4e0;line-height:1.9;">
+      <span style="color:var(--text3);">// Google Apps Script — Pegar en Extensions > Apps Script</span><br>
+      const SHEET_ID = '<span style="color:var(--accent);">TU_SPREADSHEET_ID</span>';<br><br>
+      function doGet(e) &#123;<br>
+      &nbsp;&nbsp;const ss = SpreadsheetApp.openById(SHEET_ID);<br>
+      &nbsp;&nbsp;const sheet = ss.getSheetByName(e.parameter.tab || 'Citas');<br>
+      &nbsp;&nbsp;const data = sheet.getDataRange().getValues();<br>
+      &nbsp;&nbsp;const headers = data.shift();<br>
+      &nbsp;&nbsp;const rows = data.map(r => Object.fromEntries(headers.map((h,i) => [h,r[i]])));<br>
+      &nbsp;&nbsp;return ContentService.createTextOutput(JSON.stringify(rows))<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;.setMimeType(ContentService.MimeType.JSON);<br>
+      &#125;<br><br>
+      function doPost(e) &#123;<br>
+      &nbsp;&nbsp;const body = JSON.parse(e.postData.contents);<br>
+      &nbsp;&nbsp;const ss = SpreadsheetApp.openById(SHEET_ID);<br>
+      &nbsp;&nbsp;const sheet = ss.getSheetByName(body.tab);<br>
+      &nbsp;&nbsp;sheet.appendRow(body.row);<br>
+      &nbsp;&nbsp;return ContentService.createTextOutput(JSON.stringify(&#123;ok:true&#125;));<br>
+      &#125;
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PROVEEDOR: AGENDAR ═══ -->
+<div class="page" id="page-p-agendar">
+  <div class="page-header">
+    <div><div class="page-title">Agendar Nueva Cita</div><div class="page-subtitle">Selecciona fecha, horario e ingresa datos de tu entrega</div></div>
+  </div>
+  <div class="step-bar" id="step-bar">
+    <div class="step-seg cur" id="seg-1"></div><div class="step-seg" id="seg-2"></div><div class="step-seg" id="seg-3"></div>
+  </div>
+  <div id="bk-step-1">
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Selecciona la Fecha</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <button class="btn btn-outline btn-sm">◀</button>
+          <span style="font-weight:500;font-size:13px;">Abril 2026</span>
+          <button class="btn btn-outline btn-sm">▶</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div style="display:flex;gap:14px;margin-top:14px;font-size:10px;color:var(--text3);">
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:2px;border:1px solid var(--accent);display:inline-block;"></span>Disponible</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:2px;background:rgba(239,68,68,0.1);display:inline-block;"></span>Bloqueado</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:2px;background:rgba(0,229,184,0.15);border:1px solid var(--accent);display:inline-block;"></span>Seleccionado</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Horarios Disponibles — <span id="sel-date-lbl" style="color:var(--accent);">Selecciona fecha</span></div>
+        <div id="slots-container"><div class="empty">👆 Selecciona una fecha del calendario</div></div>
+        <div id="slot-info-box" style="display:none;margin-top:12px;" class="success-box">Horario: <strong id="slot-info-txt" style="color:var(--accent);"></strong></div>
+        <div id="btn-continuar-1" style="display:none;margin-top:14px;">
+          <button class="btn btn-primary" style="width:100%;" onclick="goStep(2)">Continuar → Datos de Entrega</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bk-step-2" style="display:none;">
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Datos de la Entrega</div>
+        <div class="form-group"><label>Orden de Compra (PO) *</label><input id="inp-po" placeholder="Ej. PO-44800"></div>
+        <div class="form-group"><label>Tipo de Unidad *</label><select id="inp-unidad"><option value="">Seleccionar...</option><option>Torton</option><option>Tráiler 53'</option><option>Camioneta</option><option>Rabon</option></select></div>
+        <div class="two-col" style="gap:10px;">
+          <div class="form-group"><label>Cantidad de SKUs</label><input type="number" id="inp-skus" placeholder="0"></div>
+          <div class="form-group"><label>Pallets Estimados</label><input type="number" id="inp-pallets" placeholder="0"></div>
+        </div>
+        <div class="form-group"><label>Tipo de Mercancía</label><select id="inp-tipo"><option>Secos</option><option>Refrigerados</option><option>Granel</option></select></div>
+        <div class="form-group"><label>Observaciones</label><textarea placeholder="Instrucciones especiales..."></textarea></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Datos del Operador</div>
+        <div class="form-group"><label>Nombre del Operador</label><input placeholder="Nombre completo"></div>
+        <div class="form-group"><label>Teléfono</label><input type="tel" placeholder="+52 55 0000 0000"></div>
+        <div class="form-group"><label>Placas del Vehículo</label><input placeholder="ABC-123-X"></div>
+        <div class="sep"></div>
+        <div class="warn-box" style="margin-bottom:14px;">Tienes hasta <strong>24 horas antes</strong> de tu cita para cancelar sin penalización.</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline" style="flex:1;" onclick="goStep(1)">← Regresar</button>
+          <button class="btn btn-primary" style="flex:2;" onclick="goStep(3)">Confirmar Solicitud →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bk-step-3" style="display:none;">
+    <div style="max-width:480px;margin:0 auto;">
+      <div class="card" style="text-align:center;padding:36px 28px;">
+        <div style="font-size:44px;margin-bottom:14px;">✓</div>
+        <div style="font-size:18px;font-weight:500;color:var(--accent);margin-bottom:6px;">¡Solicitud enviada!</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:22px;line-height:1.7;">Tu solicitud fue enviada. Recibirás un correo de confirmación.</div>
+        <div class="code-box" style="margin-bottom:18px;">#CIT-2026-092</div>
+        <div style="background:var(--bg3);border-radius:8px;padding:14px;text-align:left;margin-bottom:18px;font-size:12px;color:var(--text2);line-height:2.1;">
+          <div>📅 Fecha: <strong style="color:var(--text);">25 Abr 2026 · 11:00 hrs</strong></div>
+          <div>🚛 Unidad: <strong id="conf-unidad" style="color:var(--text);">Tráiler 53'</strong></div>
+          <div>📋 PO: <strong id="conf-po" style="color:var(--text);">—</strong></div>
+          <div>📦 Tipo: <strong id="conf-tipo" style="color:var(--text);">Secos</strong></div>
+        </div>
+        <div class="info-box" style="margin-bottom:18px;text-align:left;">Se enviará un correo automático a <strong id="conf-email" style="color:var(--accent);">tu@email.com</strong> vía EmailJS.</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline" style="flex:1;" onclick="goStep(1)">+ Nueva cita</button>
+          <button class="btn btn-primary" style="flex:1;" onclick="showPage('p-miscitas')">Ver mis citas →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PROVEEDOR: MIS CITAS ═══ -->
+<div class="page" id="page-p-miscitas">
+  <div class="page-header">
+    <div><div class="page-title">Mis Citas</div><div class="page-subtitle">Gestión de reservaciones activas</div></div>
+    <button class="btn btn-primary" onclick="showPage('p-agendar')">+ Agendar Cita</button>
+  </div>
+  <div class="three-col" style="margin-bottom:20px;">
+    <div class="kpi-card"><div class="kpi-label">Citas Activas</div><div class="kpi-value blue">3</div></div>
+    <div class="kpi-card"><div class="kpi-label">Este Mes</div><div class="kpi-value green">12</div></div>
+    <div class="kpi-card"><div class="kpi-label">Mi Adherencia</div><div class="kpi-value green">91.6%</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Próximas Citas</div>
+    <table>
+      <thead><tr><th>Folio</th><th>Fecha/Hora</th><th>PO</th><th>Unidad</th><th>Tipo</th><th>Código Acceso</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag">#CIT-092</span></td><td style="font-family:var(--mono);">25 Abr · 11:00</td><td style="font-family:var(--mono);">PO-44800</td><td>Tráiler 53'</td><td><span class="badge badge-blue">Secos</span></td><td><span class="tag" style="color:var(--accent);font-family:var(--mono);">—</span></td><td><span class="badge badge-amber">Pendiente</span></td><td><div class="actions"><button class="btn btn-outline btn-sm">✎</button><button class="btn btn-danger btn-sm" onclick="cancelarCita()">✕</button></div></td></tr>
+        <tr><td><span class="tag">#CIT-093</span></td><td style="font-family:var(--mono);">28 Abr · 09:00</td><td style="font-family:var(--mono);">PO-44815</td><td>Torton</td><td><span class="badge badge-teal">Refrigerados</span></td><td><span class="tag" style="color:var(--accent);font-family:var(--mono);">ACC-7842</span></td><td><span class="badge badge-green">Confirmada</span></td><td><div class="actions"><button class="btn btn-outline btn-sm">✎</button><button class="btn btn-danger btn-sm" onclick="cancelarCita()">✕</button></div></td></tr>
+        <tr><td><span class="tag">#CIT-094</span></td><td style="font-family:var(--mono);">02 May · 10:00</td><td style="font-family:var(--mono);">PO-44830</td><td>Camioneta</td><td><span class="badge badge-amber">Granel</span></td><td><span class="tag" style="color:var(--accent);font-family:var(--mono);">ACC-3319</span></td><td><span class="badge badge-green">Confirmada</span></td><td><div class="actions"><button class="btn btn-outline btn-sm">✎</button><button class="btn btn-danger btn-sm" onclick="cancelarCita()">✕</button></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ PROVEEDOR: MI PERFIL ═══ -->
+<div class="page" id="page-p-perfil">
+  <div class="page-header">
+    <div><div class="page-title">Mi Perfil</div><div class="page-subtitle">Información y credenciales de acceso</div></div>
+    <button class="btn btn-primary" onclick="showNotif('Perfil actualizado','Tus datos han sido guardados','success')">Guardar cambios</button>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">Datos de la Empresa</div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+        <div class="provider-avatar" style="width:52px;height:52px;font-size:18px;background:rgba(0,229,184,0.15);color:var(--accent);" id="perfil-avatar">SA</div>
+        <div><div style="font-size:15px;font-weight:500;" id="perfil-nombre">Sigma Alimentos</div><div style="font-size:11px;color:var(--text3);font-family:var(--mono);">sigma@proveedor.mx</div></div>
+      </div>
+      <div class="form-group"><label>Razón Social</label><input value="Sigma Alimentos S.A. de C.V."></div>
+      <div class="form-group"><label>RFC</label><input value="SAL980312XQ1"></div>
+      <div class="form-group"><label>Teléfono Empresarial</label><input value="+52 55 5000 1234"></div>
+      <div class="form-group"><label>Tipo de Mercancía Principal</label><select><option selected>Secos</option><option>Refrigerados</option><option>Granel</option></select></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Contacto de Logística</div>
+      <div class="form-group"><label>Nombre del Contacto</label><input value="Juan García Martínez"></div>
+      <div class="form-group"><label>Correo de Contacto</label><input value="jgarcia@sigma.mx"></div>
+      <div class="form-group"><label>Celular</label><input value="+52 55 8800 5678"></div>
+      <div class="sep"></div>
+      <div class="card-title">Cambiar Contraseña</div>
+      <div class="form-group"><label>Contraseña actual</label><input type="password" placeholder="••••••••"></div>
+      <div class="form-group"><label>Nueva contraseña</label><input type="password" placeholder="Mínimo 8 caracteres"></div>
+      <div class="form-group"><label>Confirmar nueva contraseña</label><input type="password" placeholder="Repite la nueva contraseña"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main -->
+</div><!-- end app-layout -->
+</div><!-- end app -->
+
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- Modal: Nuevo Proveedor -->
+<div class="modal-overlay" id="modal-nuevo-proveedor">
+  <div class="modal">
+    <div class="modal-title">Alta de Nuevo Proveedor</div>
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab(this,'tab-empresa')">Empresa</div>
+      <div class="tab" onclick="switchTab(this,'tab-contacto')">Contacto</div>
+      <div class="tab" onclick="switchTab(this,'tab-acceso')">Acceso Web</div>
+    </div>
+    <div id="tab-empresa">
+      <div class="form-group"><label>Razón Social *</label><input id="np-razon" placeholder="Empresa S.A. de C.V."></div>
+      <div class="form-group"><label>Nombre Comercial</label><input id="np-nombre" placeholder="Como aparecerá en el sistema"></div>
+      <div class="two-col" style="gap:10px;">
+        <div class="form-group"><label>RFC *</label><input id="np-rfc" placeholder="ABC123456XYZ"></div>
+        <div class="form-group"><label>Tipo Mercancía *</label><select id="np-tipo"><option>Secos</option><option>Refrigerados</option><option>Granel</option></select></div>
+      </div>
+    </div>
+    <div id="tab-contacto" style="display:none;">
+      <div class="form-group"><label>Nombre del Contacto *</label><input id="np-contacto" placeholder="Nombre Apellido"></div>
+      <div class="form-group"><label>Correo del Contacto *</label><input id="np-email" type="email" placeholder="contacto@empresa.mx"></div>
+      <div class="form-group"><label>Teléfono</label><input id="np-tel" type="tel" placeholder="+52 55 0000 0000"></div>
+      <div class="form-group"><label>Cargo</label><input placeholder="Gerente de Logística"></div>
+    </div>
+    <div id="tab-acceso" style="display:none;">
+      <div class="info-box" style="margin-bottom:14px;">Se enviará un correo automático al proveedor con sus credenciales de acceso al portal.</div>
+      <div class="form-group"><label>Correo de acceso (usuario) *</label><input id="np-access-email" type="email" placeholder="proveedor@empresa.mx"></div>
+      <div class="form-group"><label>Contraseña temporal *</label>
+        <div style="display:flex;gap:8px;"><input id="np-pass" type="text" placeholder="Contraseña temporal"><button class="btn btn-outline btn-sm" onclick="genPass()">Generar</button></div>
+      </div>
+      <div class="form-group">
+        <div class="toggle"><input type="checkbox" id="np-send-email" checked><label for="np-send-email">Enviar correo de bienvenida con credenciales</label></div>
+      </div>
+      <div class="form-group">
+        <div class="toggle"><input type="checkbox" id="np-active" checked><label for="np-active">Cuenta activa desde el alta</label></div>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeModal('modal-nuevo-proveedor')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="altaProveedor()">✓ Dar de Alta Proveedor</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nueva Cita Admin -->
+<div class="modal-overlay" id="modal-nueva-cita">
+  <div class="modal">
+    <div class="modal-title">Nueva Cita Manual</div>
+    <div class="form-group"><label>Proveedor</label><select><option>Sigma Alimentos</option><option>Nestlé MX</option><option>Grupo LALA</option></select></div>
+    <div class="form-group"><label>Orden de Compra (PO)</label><input placeholder="PO-XXXXX"></div>
+    <div class="two-col" style="gap:10px;">
+      <div class="form-group"><label>Fecha</label><input type="date"></div>
+      <div class="form-group"><label>Horario</label><select><option>08:00</option><option>09:00</option><option>10:00</option><option>11:00</option><option>12:00</option></select></div>
+    </div>
+    <div class="form-group"><label>Muelle Asignado</label><select><option>S-01 (Secos)</option><option>S-02</option><option>R-01 (Refrigerados)</option><option>G-01 (Granel)</option></select></div>
+    <div class="two-col" style="gap:10px;">
+      <div class="form-group"><label>Tipo de Unidad</label><select><option>Torton</option><option>Tráiler 53'</option><option>Camioneta</option></select></div>
+      <div class="form-group"><label>Pallets</label><input type="number" placeholder="0"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeModal('modal-nueva-cita')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="closeModal('modal-nueva-cita');showNotif('Cita creada','La cita fue registrada y notificada al proveedor','success')">Crear Cita</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Reprogramar -->
+<div class="modal-overlay" id="modal-reprogramar">
+  <div class="modal">
+    <div class="modal-title">Reprogramar Cita</div>
+    <div class="form-group"><label>Nuevo horario</label><select><option>09:00 hrs — 25 Abr</option><option>10:00 hrs — 25 Abr</option><option>08:00 hrs — 26 Abr</option><option>09:00 hrs — 26 Abr</option></select></div>
+    <div class="form-group"><label>Motivo de reprogramación</label><select><option>Muelle ocupado</option><option>Solicitud del proveedor</option><option>Mantenimiento</option><option>Otro</option></select></div>
+    <div class="form-group"><label>Notas para el proveedor</label><textarea placeholder="Se notificará al proveedor automáticamente..."></textarea></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeModal('modal-reprogramar')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="closeModal('modal-reprogramar');showNotif('Cita reprogramada','El proveedor ha sido notificado','success')">Reprogramar y Notificar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Muelle -->
+<div class="modal-overlay" id="modal-add-muelle">
+  <div class="modal">
+    <div class="modal-title">Agregar Muelle</div>
+    <div class="form-group"><label>ID del Muelle</label><input placeholder="S-05"></div>
+    <div class="form-group"><label>Nombre</label><input placeholder="Muelle Norte 5"></div>
+    <div class="form-group"><label>Tipo</label><select><option>Secos</option><option>Refrigerados</option><option>Granel</option></select></div>
+    <div class="form-group"><label>Capacidad/Slot</label><input placeholder="2 unidades"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeModal('modal-add-muelle')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="closeModal('modal-add-muelle');showNotif('Muelle creado','El muelle ha sido agregado','success')">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Regla -->
+<div class="modal-overlay" id="modal-add-regla">
+  <div class="modal">
+    <div class="modal-title">Nueva Regla de Bloqueo</div>
+    <div class="form-group"><label>Nombre</label><input placeholder="Ej. Inventario Q3"></div>
+    <div class="form-group"><label>Tipo</label><select><option>Día Festivo</option><option>Inventario Cíclico</option><option>Restricción Parcial</option></select></div>
+    <div class="two-col" style="gap:10px;">
+      <div class="form-group"><label>Fecha inicio</label><input type="date"></div>
+      <div class="form-group"><label>Fecha fin</label><input type="date"></div>
+    </div>
+    <div class="form-group"><label>Muelles afectados</label><select><option>Todos</option><option>Solo Secos</option><option>Solo Refrigerados</option></select></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeModal('modal-add-regla')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="closeModal('modal-add-regla');showNotif('Regla creada','Bloqueo programado exitosamente','success')">Guardar Regla</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICACIÓN TOAST -->
+<div class="notif" id="notif">
+  <div style="display:flex;justify-content:space-between;gap:12px;">
+    <div><div style="font-weight:500;font-size:13px;margin-bottom:3px;" id="notif-title">Notif</div><div style="font-size:12px;color:var(--text2);" id="notif-body">Msg</div></div>
+    <button onclick="hideNotif()" style="background:none;border:none;color:var(--text3);cursor:pointer;">✕</button>
+  </div>
+</div>
+
+<script>
+// ══════ DATA ══════
+const USERS = {
+  'admin@cedis.mx':   {pass:'admin123', role:'admin',     name:'Administrador', empresa:'CEDIS Central', initials:'AD'},
+  'sigma@proveedor.mx':  {pass:'sigma123',  role:'proveedor', name:'Juan García',   empresa:'Sigma Alimentos', initials:'SA'},
+  'nestle@proveedor.mx': {pass:'nestle123', role:'proveedor', name:'Ana López',     empresa:'Nestlé MX', initials:'NM'},
+};
+
+let PROVEEDORES = [
+  {id:'P001',nombre:'Sigma Alimentos',rfc:'SAL980312XQ1',email:'sigma@proveedor.mx',contacto:'Juan García',tel:'+52 55 5000 1234',tipo:'Secos',citas:8,adherencia:96,activo:true,acceso:true},
+  {id:'P002',nombre:'Nestlé MX',rfc:'NES890105AB3',email:'nestle@proveedor.mx',contacto:'Ana López',tel:'+52 55 5555 0001',tipo:'Refrigerados',citas:6,adherencia:92,activo:true,acceso:true},
+  {id:'P003',nombre:'Grupo LALA',rfc:'GLA750210CD7',email:'lala@proveedor.mx',contacto:'Roberto Díaz',tel:'+52 81 8000 2222',tipo:'Refrigerados',citas:5,adherencia:80,activo:true,acceso:true},
+  {id:'P004',nombre:'Bimbo Logistics',rfc:'BIM6501145EF2',email:'bimbo@proveedor.mx',contacto:'María Torres',tel:'+52 55 5700 9900',tipo:'Secos',citas:7,adherencia:86,activo:true,acceso:true},
+  {id:'P005',nombre:'Maseca / Gruma',rfc:'GRU920830GH9',email:'maseca@proveedor.mx',contacto:'Carlos Ruiz',tel:'+52 81 8181 1111',tipo:'Granel',citas:4,adherencia:75,activo:true,acceso:false},
+  {id:'P006',nombre:'Sabritas',rfc:'SAB851020IJ4',email:'sabritas@proveedor.mx',contacto:'Lucía Vega',tel:'+52 55 5000 8800',tipo:'Secos',citas:6,adherencia:79,activo:true,acceso:true},
+  {id:'P007',nombre:'La Costeña',rfc:'LAC780615KL8',email:'lacostena@proveedor.mx',contacto:'Ernesto Silva',tel:'+52 55 5677 4321',tipo:'Secos',citas:3,adherencia:83,activo:false,acceso:false},
+];
+
+let currentUser = null;
+let selDate = null, selSlot = null, step = 1;
+let chartsOk = false;
+
+// ══════ AUTH ══════
+function fillLogin(email, pass) {
+  document.getElementById('login-email').value = email;
+  document.getElementById('login-pass').value = pass;
+}
+
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const pass  = document.getElementById('login-pass').value;
+  const user  = USERS[email];
+  const err   = document.getElementById('login-err');
+  if (!user || user.pass !== pass) { err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  currentUser = {...user, email};
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('ua-name').textContent = user.name;
+  document.getElementById('ua-role').textContent = user.role === 'admin' ? 'ADMINISTRADOR' : user.empresa.toUpperCase();
+  document.getElementById('ua-avatar').textContent = user.initials;
+  document.getElementById('ua-avatar').style.background = user.role === 'admin' ? 'rgba(59,130,246,0.2)' : 'rgba(0,229,184,0.15)';
+  document.getElementById('ua-avatar').style.color = user.role === 'admin' ? 'var(--accent2)' : 'var(--accent)';
+  if (user.role === 'admin') {
+    document.getElementById('admin-nav').style.display = '';
+    document.getElementById('proveedor-nav').style.display = 'none';
+    showPage('dashboard');
+  } else {
+    document.getElementById('admin-nav').style.display = 'none';
+    document.getElementById('proveedor-nav').style.display = '';
+    // update proveedor profile
+    const pData = PROVEEDORES.find(p => p.email === email);
+    if (pData) {
+      document.getElementById('perfil-avatar').textContent = user.initials;
+      document.getElementById('perfil-nombre').textContent = pData.nombre;
+      document.getElementById('conf-email').textContent = email;
+    }
+    showPage('p-agendar');
+    renderCalendar();
+  }
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-pass').value = '';
+}
+
+function doLogout() {
+  currentUser = null;
+  chartsOk = false;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+// ══════ NAV ══════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById('page-'+id);
+  if(pg) pg.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if(n.getAttribute('onclick') && n.getAttribute('onclick').includes("'"+id+"'")) n.classList.add('active');
+  });
+  if(id==='kpis') setTimeout(renderCharts, 80);
+  if(id==='proveedores') renderProveedores(PROVEEDORES);
+  if(id==='p-agendar') renderCalendar();
+}
+
+// ══════ NOTIFICATIONS ══════
+function showNotif(title, body, type='info') {
+  const n = document.getElementById('notif');
+  document.getElementById('notif-title').textContent = title;
+  document.getElementById('notif-body').textContent = body;
+  const c = {success:'var(--success)',danger:'var(--danger)',info:'var(--accent2)',warn:'var(--warn)'};
+  n.style.borderColor = c[type] || 'var(--border)';
+  n.classList.add('show');
+  clearTimeout(n._t);
+  n._t = setTimeout(hideNotif, 4000);
+}
+function hideNotif() { document.getElementById('notif').classList.remove('show'); }
+
+// ══════ MODALS ══════
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if(e.target===m) m.classList.remove('show'); });
+});
+
+// ══════ TABS ══════
+function switchTab(el, tabId) {
+  const modal = el.closest('.modal');
+  modal.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['tab-empresa','tab-contacto','tab-acceso'].forEach(id => {
+    const el2 = document.getElementById(id);
+    if(el2) el2.style.display = id===tabId ? '' : 'none';
+  });
+}
+
+// ══════ PROVEEDORES TABLE ══════
+function renderProveedores(data) {
+  const tbody = document.getElementById('proveedores-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = data.map(p => `
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:8px;">
+        <div class="provider-avatar" style="width:28px;height:28px;font-size:10px;font-weight:700;background:rgba(0,229,184,0.1);color:var(--accent);">${p.nombre.substring(0,2).toUpperCase()}</div>
+        <span>${p.nombre}</span>
+      </div></td>
+      <td style="font-family:var(--mono);font-size:11px;">${p.rfc}</td>
+      <td><div style="font-size:12px;">${p.contacto}</div><div style="font-size:10px;color:var(--text3);">${p.email}</div></td>
+      <td><span class="badge ${p.tipo==='Secos'?'badge-blue':p.tipo==='Refrigerados'?'badge-teal':'badge-amber'}">${p.tipo}</span></td>
+      <td style="font-family:var(--mono);">${p.citas}</td>
+      <td><span class="badge ${p.adherencia>=90?'badge-green':p.adherencia>=80?'badge-amber':'badge-red'}">${p.adherencia}%</span></td>
+      <td><span class="badge ${p.acceso?'badge-green':'badge-gray'}">${p.acceso?'Activo':'Sin acceso'}</span></td>
+      <td><div class="actions">
+        <button class="icon-btn" onclick="editarProveedor('${p.id}')" title="Editar">✎</button>
+        <button class="icon-btn" onclick="resetPass('${p.nombre}')" title="Reset contraseña">🔑</button>
+        <button class="icon-btn danger" onclick="toggleProveedor('${p.id}')" title="${p.activo?'Desactivar':'Activar'}">${p.activo?'✕':'✓'}</button>
+      </div></td>
+    </tr>
+  `).join('');
+}
+
+function filterProveedores(q) {
+  const filtered = PROVEEDORES.filter(p =>
+    p.nombre.toLowerCase().includes(q.toLowerCase()) ||
+    p.rfc.toLowerCase().includes(q.toLowerCase()) ||
+    p.email.toLowerCase().includes(q.toLowerCase())
+  );
+  renderProveedores(filtered);
+}
+
+function editarProveedor(id) { showNotif('Editar proveedor','Formulario de edición abierto','info'); }
+function resetPass(nombre) { showNotif('Contraseña restablecida',`Nueva contraseña temporal enviada a ${nombre}`, 'success'); }
+function toggleProveedor(id) {
+  const p = PROVEEDORES.find(p => p.id === id);
+  if(p) { p.activo = !p.activo; renderProveedores(PROVEEDORES); showNotif(p.activo?'Proveedor activado':'Proveedor desactivado',`${p.nombre} actualizado`,'success'); }
+}
+
+// ══════ ALTA PROVEEDOR ══════
+function genPass() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let pass = '';
+  for(let i=0;i<10;i++) pass += chars[Math.floor(Math.random()*chars.length)];
+  document.getElementById('np-pass').value = pass;
+}
+
+function altaProveedor() {
+  const nombre = document.getElementById('np-nombre').value || document.getElementById('np-razon').value || 'Nuevo Proveedor';
+  const email = document.getElementById('np-access-email').value;
+  const sendEmail = document.getElementById('np-send-email').checked;
+  closeModal('modal-nuevo-proveedor');
+  PROVEEDORES.push({
+    id:'P'+String(PROVEEDORES.length+1).padStart(3,'0'),
+    nombre: nombre, rfc: document.getElementById('np-rfc').value||'---',
+    email: email||'nuevo@empresa.mx', contacto: document.getElementById('np-contacto').value||'---',
+    tel:'---', tipo: document.getElementById('np-tipo').value,
+    citas:0, adherencia:100, activo:true, acceso:!!email
+  });
+  renderProveedores(PROVEEDORES);
+  if(sendEmail) {
+    setTimeout(()=> showNotif('Correo enviado',`Credenciales enviadas a ${nombre} vía EmailJS`,'success'), 600);
+  } else {
+    showNotif('Proveedor creado',`${nombre} ha sido dado de alta exitosamente`,'success');
+  }
+  // clear fields
+  ['np-razon','np-nombre','np-rfc','np-contacto','np-email','np-tel','np-access-email','np-pass'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+}
+
+// ══════ APROBACIÓN ══════
+function aprobar(rowId, folio, email) {
+  const row = document.getElementById(rowId);
+  if(!row) return;
+  row.cells[7].innerHTML = '<span class="badge badge-green">Aprobada</span>';
+  updatePendingBadge(-1);
+  showNotif('Cita aprobada ✓', `${folio} confirmada. Notificando a ${email}...`, 'success');
+  setTimeout(() => showNotif('Correo enviado ✉', `Código de acceso enviado a ${email}`,'info'), 2000);
+}
+
+function rechazar(rowId, folio) {
+  const row = document.getElementById(rowId);
+  if(!row) return;
+  row.cells[7].innerHTML = '<span class="badge badge-red">Rechazada</span>';
+  updatePendingBadge(-1);
+  showNotif('Cita rechazada', `${folio} rechazada. Proveedor notificado.`, 'danger');
+}
+
+function aprobarTodas() {
+  ['row-089','row-090','row-091'].forEach((id,i) => {
+    setTimeout(() => {
+      const row = document.getElementById(id);
+      if(row && !row.cells[7].querySelector('.badge-green')) {
+        row.cells[7].innerHTML = '<span class="badge badge-green">Aprobada</span>';
+      }
+    }, i*300);
+  });
+  setTimeout(() => {
+    document.getElementById('pending-badge').style.display = 'none';
+    showNotif('Todas aprobadas','3 citas confirmadas. Correos enviados.','success');
+  }, 1000);
+}
+
+let pendingCount = 3;
+function updatePendingBadge(delta) {
+  pendingCount = Math.max(0, pendingCount + delta);
+  const badge = document.getElementById('pending-badge');
+  badge.textContent = pendingCount;
+  badge.style.display = pendingCount > 0 ? '' : 'none';
+}
+
+function cancelarCita() {
+  if(confirm('¿Seguro que deseas cancelar esta cita?')) showNotif('Cita cancelada','Se notificó al CEDIS','warn');
+}
+
+// ══════ CALENDAR & SLOTS ══════
+function renderCalendar() {
+  const grid = document.getElementById('cal-grid');
+  if(!grid) return;
+  const days = ['L','M','M','J','V','S','D'];
+  const blocked = [1,5,6,12,13,17,18,19,20];
+  const occupied = [23,24,26,27];
+  grid.innerHTML = days.map(d=>`<div class="cal-hdr">${d}</div>`).join('');
+  for(let i=0;i<2;i++) grid.innerHTML += '<div></div>';
+  for(let d=1;d<=30;d++) {
+    const isBlocked = blocked.includes(d);
+    const hasAppts = occupied.includes(d);
+    const dots = hasAppts ? `<div class="cal-dots"><div class="cal-dot" style="background:var(--warn)"></div><div class="cal-dot" style="background:var(--success)"></div></div>` : '';
+    grid.innerHTML += `<div class="cal-day${isBlocked?' blocked':''}" id="cd-${d}" onclick="selectDate(${d},${isBlocked})">
+      <div class="cal-day-num">${d}</div>${dots}</div>`;
+  }
+}
+
+function selectDate(d, blocked) {
+  if(blocked) { showNotif('Día no disponible','Este día está bloqueado','danger'); return; }
+  selDate = d;
+  document.querySelectorAll('.cal-day').forEach(el => el.classList.remove('selected'));
+  const el = document.getElementById('cd-'+d);
+  if(el) el.classList.add('selected');
+  document.getElementById('sel-date-lbl').textContent = `${d} de Abril, 2026`;
+  renderSlots(d);
+}
+
+function renderSlots(day) {
+  const full = [9,11,14];
+  let html = '<div class="slots-grid">';
+  for(let h=8;h<=17;h++) {
+    const isFull = full.includes(h);
+    const lbl = `${String(h).padStart(2,'0')}:00`;
+    const free = isFull ? 0 : Math.floor(Math.random()*2)+1;
+    html += `<div class="slot ${isFull?'full':'available'}" onclick="${isFull?'':(`selectSlot(this,'${lbl}')`)}">
+      <div>${lbl}</div><div class="slot-cap">${isFull?'Lleno':free+'/2 libre'+(free>1?'s':'')}</div></div>`;
+  }
+  html += '</div>';
+  document.getElementById('slots-container').innerHTML = html;
+  selSlot = null;
+  document.getElementById('slot-info-box').style.display = 'none';
+  document.getElementById('btn-continuar-1').style.display = 'none';
+}
+
+function selectSlot(el, lbl) {
+  document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  selSlot = lbl;
+  document.getElementById('slot-info-txt').textContent = `${selDate} Abr, ${lbl} hrs`;
+  document.getElementById('slot-info-box').style.display = 'block';
+  document.getElementById('btn-continuar-1').style.display = 'block';
+}
+
+function goStep(n) {
+  step = n;
+  [1,2,3].forEach(i => {
+    document.getElementById('bk-step-'+i).style.display = i===n ? '' : 'none';
+    const seg = document.getElementById('seg-'+i);
+    if(i<n) seg.className='step-seg done'; else if(i===n) seg.className='step-seg cur'; else seg.className='step-seg';
+  });
+  if(n===3) {
+    document.getElementById('conf-po').textContent = document.getElementById('inp-po').value || 'PO-XXXXX';
+    document.getElementById('conf-unidad').textContent = document.getElementById('inp-unidad').value || 'Tráiler 53\'';
+    document.getElementById('conf-tipo').textContent = document.getElementById('inp-tipo').value || 'Secos';
+    document.getElementById('conf-email').textContent = currentUser ? currentUser.email : 'proveedor@empresa.mx';
+    showNotif('Solicitud enviada ✉','Correo automático enviado vía EmailJS','success');
+    setTimeout(() => showNotif('Correo recibido 📬','El administrador del CEDIS fue notificado','info'), 2500);
+  }
+}
+
+// ══════ HORARIOS SAVE ══════
+function saveHorarios() { showNotif('Horarios guardados','Configuración actualizada en Google Sheets','success'); }
+
+// ══════ EMAIL CONFIG ══════
+function saveEmailConfig() { showNotif('Configuración guardada','Credenciales EmailJS actualizadas','success'); }
+function testEmail() { showNotif('Correo de prueba enviado','Revisa tu bandeja de entrada','info'); }
+
+const emailPreviews = {
+  solicitud: {
+    title: 'Solicitud recibida',
+    body: `<strong>Asunto:</strong> Solicitud de cita CEDIS — #CIT-2026-092<br><br>
+Estimado <strong>Proveedor</strong>,<br><br>
+Hemos recibido tu solicitud de cita con los siguientes datos:<br><br>
+📅 <strong>Fecha solicitada:</strong> 25 de Abril 2026 · 11:00 hrs<br>
+📋 <strong>Orden de Compra:</strong> PO-44800<br>
+🚛 <strong>Tipo de Unidad:</strong> Tráiler 53'<br>
+📦 <strong>Mercancía:</strong> Secos · 20 pallets<br><br>
+Tu solicitud está siendo revisada por el equipo del CEDIS. Recibirás una confirmación en las próximas horas.<br><br>
+<strong>CEDIS — Sistema de Citas</strong>`
+  },
+  aprobacion: {
+    title: 'Cita aprobada',
+    body: `<strong>Asunto:</strong> ✅ Cita Confirmada — #CIT-2026-092<br><br>
+Estimado <strong>Proveedor</strong>,<br><br>
+Tu cita ha sido <strong>CONFIRMADA</strong> con los siguientes datos:<br><br>
+📅 <strong>Fecha:</strong> 25 de Abril 2026 · 11:00 hrs<br>
+🏭 <strong>Muelle Asignado:</strong> S-01 — Secos Norte<br>
+🔑 <strong>Código de Acceso:</strong> ACC-7842<br><br>
+Por favor presenta este código al llegar al CEDIS. Si necesitas modificar o cancelar tu cita, hazlo al menos 24 horas antes:<br><br>
+👉 <span style="color:var(--accent2);">[Modificar / Cancelar cita]</span><br><br>
+<strong>CEDIS — Sistema de Citas</strong>`
+  },
+  rechazo: {
+    title: 'Cita rechazada',
+    body: `<strong>Asunto:</strong> ❌ Cita Rechazada — #CIT-2026-091<br><br>
+Estimado <strong>Proveedor</strong>,<br><br>
+Lamentamos informarte que tu cita ha sido <strong>RECHAZADA</strong> por el siguiente motivo:<br><br>
+📋 <strong>Motivo:</strong> Muelle no disponible en el horario solicitado<br><br>
+Te invitamos a seleccionar un nuevo horario disponible:<br><br>
+👉 <span style="color:var(--accent2);">[Reagendar mi cita]</span><br><br>
+<strong>CEDIS — Sistema de Citas</strong>`
+  },
+  bienvenida: {
+    title: 'Bienvenida al portal',
+    body: `<strong>Asunto:</strong> 🎉 Bienvenido al Portal CEDIS — Tus accesos<br><br>
+Estimado <strong>Proveedor</strong>,<br><br>
+Tu cuenta ha sido creada en el <strong>Sistema de Citas CEDIS</strong>. Aquí tus credenciales:<br><br>
+📧 <strong>Usuario:</strong> proveedor@empresa.mx<br>
+🔑 <strong>Contraseña temporal:</strong> <span style="font-family:var(--mono);color:var(--accent);">TmpPass2026!</span><br><br>
+Por seguridad, te recomendamos cambiar tu contraseña en tu primer inicio de sesión.<br><br>
+👉 <span style="color:var(--accent2);">[Acceder al portal]</span><br><br>
+<strong>CEDIS — Sistema de Citas</strong>`
+  }
+};
+
+function prevEmail(type) {
+  const prev = emailPreviews[type];
+  if(!prev) return;
+  document.getElementById('email-preview-title').textContent = prev.title;
+  document.getElementById('email-preview-body').innerHTML = prev.body;
+  document.getElementById('email-preview-card').style.display = '';
+  document.getElementById('email-preview-card').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ══════ SYNC ══════
+function syncSheets() {
+  showNotif('Sincronizando...','Conectando con Google Sheets','info');
+  setTimeout(() => showNotif('Sincronizado ✓','1,247 registros actualizados','success'), 1800);
+}
+
+// ══════ EXPORT ══════
+function exportarCSV() {
+  const rows = [
+    ['Folio','Proveedor','PO','Fecha','Muelle','Llegada Real','Dwell (min)','Estado'],
+    ['#CIT-085','Sigma Alimentos','PO-44490','20 Abr 09:00','S-01','09:05','58','Puntual'],
+    ['#CIT-086','Nestlé MX','PO-44495','20 Abr 11:00','R-01','11:23','82','Tardío'],
+    ['#CIT-087','Grupo LALA','PO-44501','21 Abr 10:00','R-02','—','—','No-Show'],
+    ['#CIT-088','Bimbo','PO-44510','22 Abr 09:00','S-02','08:55','61','Puntual'],
+  ];
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'cedis-reporte-citas.csv'; a.click();
+  URL.revokeObjectURL(url);
+  showNotif('CSV descargado','cedis-reporte-citas.csv','success');
+}
+
+function exportarReporte(tipo) {
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFont('helvetica');
+  doc.setFillColor(11,14,20);
+  doc.rect(0,0,210,297,'F');
+  doc.setFillColor(23,29,46);
+  doc.rect(0,0,210,40,'F');
+  doc.setTextColor(0,229,184);
+  doc.setFontSize(18);
+  doc.setFont('helvetica','bold');
+  doc.text('CEDIS/DOCK', 14, 18);
+  doc.setFontSize(10);
+  doc.setFont('helvetica','normal');
+  doc.setTextColor(122,138,170);
+  doc.text('Sistema de Gestión de Citas de Proveedores', 14, 26);
+  doc.text(`Reporte generado: ${new Date().toLocaleDateString('es-MX')}`, 14, 33);
+  doc.setTextColor(0,229,184);
+  doc.setFontSize(13);
+  doc.setFont('helvetica','bold');
+  const titles = {kpi:'Reporte de KPIs — Abril 2026',citas:'Reporte de Citas',proveedores:'Ranking de Proveedores'};
+  doc.text(titles[tipo] || 'Reporte', 14, 55);
+  doc.setTextColor(200,210,230);
+  doc.setFontSize(10);
+  doc.setFont('helvetica','normal');
+  if(tipo==='kpi') {
+    const kpis = [
+      ['Indicador','Valor','Meta','Estado'],
+      ['Adherencia Proveedor','87.3%','≥ 90%','⚠ Bajo meta'],
+      ['Dock Dwell Time Promedio','72 min','≤ 60 min','⚠ Sobre estándar'],
+      ['Utilización de Muelles','68.4%','70-85%','⚠ Ligeramente bajo'],
+      ['Tasa de No-Show','8.3%','< 5%','✕ Requiere atención'],
+    ];
+    let y = 65;
+    kpis.forEach((row, i) => {
+      if(i===0) { doc.setFont('helvetica','bold'); doc.setTextColor(0,229,184); }
+      else { doc.setFont('helvetica','normal'); doc.setTextColor(200,210,230); }
+      doc.text(row[0], 14, y);
+      doc.text(row[1], 80, y);
+      doc.text(row[2], 120, y);
+      doc.text(row[3], 160, y);
+      y += 10;
+      if(i===0) { doc.setDrawColor(35,45,66); doc.line(14, y-4, 196, y-4); }
+    });
+    y += 10;
+    doc.setTextColor(0,229,184); doc.setFont('helvetica','bold'); doc.text('Detalle por Proveedor', 14, y); y+=10;
+    const provs = [
+      ['Proveedor','Citas','A Tiempo','Tardías','No-Show','%Adherencia'],
+      ['Sigma Alimentos','8','8','0','0','96%'],
+      ['Nestlé MX','6','5','1','0','92%'],
+      ['Grupo LALA','5','4','0','1','80%'],
+      ['Bimbo Logistics','7','6','1','0','86%'],
+    ];
+    provs.forEach((row, i) => {
+      if(i===0) { doc.setFont('helvetica','bold'); doc.setTextColor(0,229,184); }
+      else { doc.setFont('helvetica','normal'); doc.setTextColor(200,210,230); }
+      doc.text(row[0], 14, y); doc.text(row[1], 72, y); doc.text(row[2], 92, y);
+      doc.text(row[3], 112, y); doc.text(row[4], 132, y); doc.text(row[5], 158, y);
+      y += 9;
+      if(i===0) { doc.setDrawColor(35,45,66); doc.line(14, y-3, 196, y-3); }
+    });
+  } else if(tipo==='proveedores') {
+    let y = 65;
+    doc.setFont('helvetica','bold'); doc.setTextColor(0,229,184);
+    doc.text('Proveedor', 14, y); doc.text('Tipo', 90, y); doc.text('Citas', 120, y); doc.text('Adherencia', 148, y);
+    y += 7; doc.setDrawColor(35,45,66); doc.line(14, y, 196, y); y += 8;
+    doc.setFont('helvetica','normal'); doc.setTextColor(200,210,230);
+    PROVEEDORES.forEach(p => {
+      doc.text(p.nombre, 14, y); doc.text(p.tipo, 90, y);
+      doc.text(String(p.citas), 120, y); doc.text(p.adherencia+'%', 148, y);
+      y += 9;
+    });
+  }
+  doc.setFillColor(23,29,46); doc.rect(0,280,210,17,'F');
+  doc.setTextColor(55,65,90); doc.setFontSize(8);
+  doc.text('CEDIS/DOCK — Sistema de Gestión de Citas · Documento confidencial', 14, 290);
+  doc.save(`cedis-reporte-${tipo}-${new Date().toISOString().slice(0,10)}.pdf`);
+  showNotif('PDF generado ✓',`cedis-reporte-${tipo}.pdf descargado`,'success');
+}
+
+// ══════ CHARTS ══════
+function renderCharts() {
+  if(chartsOk) return;
+  chartsOk = true;
+  new Chart(document.getElementById('chart-adherencia'), {
+    type:'bar',
+    data:{
+      labels:['Sigma','Nestlé','Bimbo','Lala','Maseca','Sabritas','Costeña'],
+      datasets:[{label:'%',data:[96,92,86,80,75,79,83],
+        backgroundColor:ctx => {const v=[96,92,86,80,75,79,83][ctx.dataIndex];return v>=90?'rgba(16,185,129,0.7)':v>=80?'rgba(245,158,11,0.7)':'rgba(239,68,68,0.7)';},
+        borderRadius:4}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#7a8aaa',font:{size:10}}},y:{min:60,max:100,ticks:{color:'#7a8aaa',callback:v=>v+'%'},grid:{color:'#232d42'}}}}
+  });
+  new Chart(document.getElementById('chart-dwell'), {
+    type:'line',
+    data:{labels:['Sem 1','Sem 2','Sem 3','Sem 4'],datasets:[
+      {label:'Secos',data:[62,68,71,65],borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',tension:0.4,fill:true,pointRadius:4},
+      {label:'Refrigerados',data:[78,85,80,88],borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0.08)',tension:0.4,fill:true,pointRadius:4},
+      {label:'Granel',data:[55,60,58,62],borderColor:'#00e5b8',backgroundColor:'rgba(0,229,184,0.08)',tension:0.4,fill:true,pointRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#7a8aaa',font:{size:10},boxWidth:10,padding:12}}},
+      scales:{x:{ticks:{color:'#7a8aaa'}},y:{ticks:{color:'#7a8aaa',callback:v=>v+' min'},grid:{color:'#232d42'}}}}
+  });
+  new Chart(document.getElementById('chart-util'), {
+    type:'bar',
+    data:{labels:['08','09','10','11','12','13','14','15','16','17'],
+      datasets:[{label:'%',data:[30,65,90,85,70,60,75,80,50,20],backgroundColor:'rgba(0,229,184,0.5)',borderColor:'#00e5b8',borderWidth:1,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#7a8aaa',font:{size:10}}},y:{max:100,ticks:{color:'#7a8aaa',callback:v=>v+'%'},grid:{color:'#232d42'}}}}
+  });
+  new Chart(document.getElementById('chart-noshow'), {
+    type:'doughnut',
+    data:{labels:['Secos (2)','Refrigerados (1)','Granel (1)'],
+      datasets:[{data:[2,1,1],backgroundColor:['#3b82f6','#00e5b8','#f59e0b'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
+      plugins:{legend:{position:'bottom',labels:{color:'#7a8aaa',font:{size:10},boxWidth:10,padding:14}}}}
+  });
+}
+</script>
+</body>
+</html>
