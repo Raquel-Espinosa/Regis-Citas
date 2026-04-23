@@ -1131,6 +1131,34 @@ textarea{resize:vertical;min-height:80px;}
 </div>
 
 <script>
+// ══════ GOOGLE SHEETS — APPS SCRIPT URL ══════
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_risNsgI3kPnh5P39ZyveQLD6J_tkeOVaJPuw8QMCgtB2o5RCW9QjRXt0NaHBCOnWCQ/exec';
+
+// ── Leer datos de cualquier pestaña (GET)
+async function sheetsGet(tab) {
+  try {
+    const res = await fetch(`${APPS_SCRIPT_URL}?tab=${tab}`);
+    return await res.json();
+  } catch(e) {
+    console.error('sheetsGet error:', e);
+    return null;
+  }
+}
+
+// ── Escribir / actualizar / eliminar una fila (POST)
+async function sheetsPost(tab, accion, row, filtro) {
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ tab, accion, row, filtro })
+    });
+    return await res.json();
+  } catch(e) {
+    console.error('sheetsPost error:', e);
+    return null;
+  }
+}
+
 // ══════ DATA ══════
 const USERS = {
   'admin@cedis.mx':   {pass:'admin123', role:'admin',     name:'Administrador', empresa:'CEDIS Central', initials:'AD'},
@@ -1420,7 +1448,7 @@ function selectSlot(el, lbl) {
   document.getElementById('btn-continuar-1').style.display = 'block';
 }
 
-function goStep(n) {
+async function goStep(n) {
   step = n;
   [1,2,3].forEach(i => {
     document.getElementById('bk-step-'+i).style.display = i===n ? '' : 'none';
@@ -1428,11 +1456,38 @@ function goStep(n) {
     if(i<n) seg.className='step-seg done'; else if(i===n) seg.className='step-seg cur'; else seg.className='step-seg';
   });
   if(n===3) {
-    document.getElementById('conf-po').textContent = document.getElementById('inp-po').value || 'PO-XXXXX';
-    document.getElementById('conf-unidad').textContent = document.getElementById('inp-unidad').value || 'Tráiler 53\'';
-    document.getElementById('conf-tipo').textContent = document.getElementById('inp-tipo').value || 'Secos';
-    document.getElementById('conf-email').textContent = currentUser ? currentUser.email : 'proveedor@empresa.mx';
-    showNotif('Solicitud enviada ✉','Correo automático enviado vía EmailJS','success');
+    const po      = document.getElementById('inp-po').value || '';
+    const unidad  = document.getElementById('inp-unidad').value || '';
+    const skus    = document.getElementById('inp-skus').value || '';
+    const pallets = document.getElementById('inp-pallets').value || '';
+    const tipo    = document.getElementById('inp-tipo').value || '';
+    const folio   = '#CIT-2026-' + String(Math.floor(Math.random()*900)+100);
+    const fecha   = `${selDate || '25'} Abr 2026`;
+    const hora    = selSlot || '11:00';
+
+    document.getElementById('conf-po').textContent      = po || 'PO-XXXXX';
+    document.getElementById('conf-unidad').textContent  = unidad || 'Tráiler 53\'';
+    document.getElementById('conf-tipo').textContent    = tipo || 'Secos';
+    document.getElementById('conf-email').textContent   = currentUser ? currentUser.email : 'proveedor@empresa.mx';
+
+    // ── Guardar en Google Sheets
+    showNotif('Guardando en Sheets...', 'Registrando cita en Google Sheets', 'info');
+    const resultado = await sheetsPost('Citas', 'insertar', {
+      folio,
+      proveedor_nombre: currentUser ? currentUser.empresa : '',
+      po_number: po,
+      fecha, hora,
+      tipo_unidad: unidad,
+      skus, pallets,
+      tipo_mercancia: tipo,
+      estado: 'Pendiente'
+    });
+
+    if (resultado && resultado.ok) {
+      showNotif('Solicitud enviada ✉', 'Guardada en Google Sheets y notificada al administrador', 'success');
+    } else {
+      showNotif('Solicitud enviada ✉', 'Correo automático enviado vía EmailJS', 'success');
+    }
     setTimeout(() => showNotif('Correo recibido 📬','El administrador del CEDIS fue notificado','info'), 2500);
   }
 }
@@ -1502,9 +1557,17 @@ function prevEmail(type) {
 }
 
 // ══════ SYNC ══════
-function syncSheets() {
-  showNotif('Sincronizando...','Conectando con Google Sheets','info');
-  setTimeout(() => showNotif('Sincronizado ✓','1,247 registros actualizados','success'), 1800);
+async function syncSheets() {
+  showNotif('Sincronizando...','Conectando con Google Sheets...','info');
+  try {
+    const citas = await sheetsGet('Citas');
+    const provs = await sheetsGet('Proveedores');
+    if (citas === null || provs === null) throw new Error('Sin respuesta');
+    const total = (Array.isArray(citas) ? citas.length : 0) + (Array.isArray(provs) ? provs.length : 0);
+    showNotif('Sincronizado ✓', `${total} registros actualizados desde Google Sheets`, 'success');
+  } catch(e) {
+    showNotif('Error de conexión', 'No se pudo conectar con Google Sheets. Verifica la URL del Apps Script.', 'danger');
+  }
 }
 
 // ══════ EXPORT ══════
