@@ -278,6 +278,21 @@ textarea{resize:vertical;min-height:80px;}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 .provider-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px;}
 .provider-avatar{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;}
+/* ── CHECK-IN ── */
+.checkin-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:var(--sans);transition:all 0.15s;}
+.checkin-btn.llegada{background:rgba(59,130,246,0.15);color:var(--accent2);border:1px solid rgba(59,130,246,0.3);}
+.checkin-btn.llegada:hover{background:rgba(59,130,246,0.3);}
+.checkin-btn.liberar{background:rgba(16,185,129,0.15);color:var(--success);border:1px solid rgba(16,185,129,0.3);}
+.checkin-btn.liberar:hover{background:rgba(16,185,129,0.3);}
+.checkin-btn.noshow{background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.25);}
+.checkin-btn.noshow:hover{background:rgba(239,68,68,0.2);}
+.checkin-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.dwell-live{font-family:var(--mono);font-size:12px;color:var(--warn);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.hora-llegada{font-family:var(--mono);font-size:12px;color:var(--accent);}
+.adherencia-bar{display:flex;align-items:center;gap:8px;}
+.adh-mini{height:3px;border-radius:2px;background:var(--border);flex:1;overflow:hidden;}
+.adh-fill{height:100%;border-radius:2px;}
 </style>
 </head>
 <body>
@@ -305,14 +320,7 @@ textarea{resize:vertical;min-height:80px;}
         <div><div class="demo-chip-label">Administrador CEDIS</div><div class="demo-chip-cred">admin@cedis.mx / admin123</div></div>
         <span style="color:var(--text3);font-size:11px;">→</span>
       </div>
-      <div class="demo-chip" onclick="fillLogin('sigma@proveedor.mx','sigma123')">
-        <div><div class="demo-chip-label">Proveedor — Sigma Alimentos</div><div class="demo-chip-cred">sigma@proveedor.mx / sigma123</div></div>
-        <span style="color:var(--text3);font-size:11px;">→</span>
-      </div>
-      <div class="demo-chip" onclick="fillLogin('nestle@proveedor.mx','nestle123')">
-        <div><div class="demo-chip-label">Proveedor — Nestlé MX</div><div class="demo-chip-cred">nestle@proveedor.mx / nestle123</div></div>
-        <span style="color:var(--text3);font-size:11px;">→</span>
-      </div>
+      <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:4px;">Los proveedores inician sesión con las credenciales asignadas por el administrador.</div>
     </div>
   </div>
 </div>
@@ -372,57 +380,50 @@ textarea{resize:vertical;min-height:80px;}
 <!-- ═══ ADMIN: DASHBOARD ═══ -->
 <div class="page active" id="page-dashboard">
   <div class="page-header">
-    <div><div class="page-title">Dashboard Operativo</div><div class="page-subtitle">Martes 22 de Abril, 2026 · <span class="dot-live"></span> En vivo</div></div>
+    <div><div class="page-title">Dashboard Operativo</div><div class="page-subtitle" id="dash-subtitle">Cargando...</div></div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-outline btn-sm" onclick="syncSheets()">↻ Sync Sheets</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('modal-nueva-cita')">+ Nueva Cita</button>
     </div>
   </div>
+
+  <!-- KPIs dinámicos desde Sheets -->
   <div class="kpi-grid">
-    <div class="kpi-card"><div class="kpi-label">Citas Hoy</div><div class="kpi-value blue">18</div><div class="kpi-delta">↑ 3 vs ayer</div></div>
-    <div class="kpi-card"><div class="kpi-label">Adherencia</div><div class="kpi-value green">87%</div><div class="kpi-delta">Meta ≥ 90%</div></div>
-    <div class="kpi-card"><div class="kpi-label">Dwell Time</div><div class="kpi-value amber">72 min</div><div class="kpi-delta">+12 vs estándar</div></div>
-    <div class="kpi-card"><div class="kpi-label">No-Shows</div><div class="kpi-value red">4</div><div class="kpi-delta">8.3% del mes</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Citas</div><div class="kpi-value blue" id="dash-kpi-total">—</div><div class="kpi-delta" id="dash-kpi-total-d">cargando...</div></div>
+    <div class="kpi-card"><div class="kpi-label">Adherencia</div><div class="kpi-value green" id="dash-kpi-adh">—</div><div class="kpi-delta">Meta ≥ 90%</div></div>
+    <div class="kpi-card"><div class="kpi-label">Dwell Time Prom.</div><div class="kpi-value amber" id="dash-kpi-dwell">—</div><div class="kpi-delta">Estándar 60 min</div></div>
+    <div class="kpi-card"><div class="kpi-label">No-Shows</div><div class="kpi-value red" id="dash-kpi-noshow">—</div><div class="kpi-delta" id="dash-kpi-noshow-d">del total</div></div>
   </div>
+
   <div class="two-col" style="margin-bottom:16px;">
+    <!-- Gráfica de citas por estado -->
     <div class="card">
-      <div class="card-title">Estado de Muelles — Ahora</div>
-      <div class="three-col" style="gap:10px;" id="muelles-dashboard">
-        <div class="provider-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div><div style="font-weight:500;font-size:13px;">Secos</div><div style="font-size:10px;color:var(--text3);">4 muelles</div></div>
-            <div style="font-family:var(--mono);font-size:16px;color:var(--success);">75%</div>
-          </div>
-          <div class="progress-bar"><div class="progress-fill" style="width:75%;background:var(--success)"></div></div>
-          <div style="font-size:10px;color:var(--text3);margin-top:6px;">3/4 ocupados</div>
-        </div>
-        <div class="provider-card" style="border-color:rgba(239,68,68,0.3);">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div><div style="font-weight:500;font-size:13px;">Refrigerados</div><div style="font-size:10px;color:var(--danger);">⚠ Saturado</div></div>
-            <div style="font-family:var(--mono);font-size:16px;color:var(--danger);">100%</div>
-          </div>
-          <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--danger)"></div></div>
-          <div style="font-size:10px;color:var(--text3);margin-top:6px;">2/2 ocupados</div>
-        </div>
-        <div class="provider-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div><div style="font-weight:500;font-size:13px;">Granel</div><div style="font-size:10px;color:var(--text3);">2 muelles</div></div>
-            <div style="font-family:var(--mono);font-size:16px;color:var(--accent);">50%</div>
-          </div>
-          <div class="progress-bar"><div class="progress-fill" style="width:50%;background:var(--accent)"></div></div>
-          <div style="font-size:10px;color:var(--text3);margin-top:6px;">1/2 ocupados</div>
-        </div>
+      <div class="card-title">Citas por Estado</div>
+      <div class="chart-wrap" style="height:220px;">
+        <canvas id="chart-dash-estados" role="img" aria-label="Citas por estado">Distribución de citas por estado.</canvas>
       </div>
     </div>
+    <!-- Gráfica de muelles -->
     <div class="card">
-      <div class="card-title">Próximas Citas</div>
-      <table>
-        <thead><tr><th>Hora</th><th>Proveedor</th><th>Muelle</th><th>Estado</th></tr></thead>
-        <tbody id="dash-citas-tbody">
-          <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">Cargando citas...</td></tr>
-        </tbody>
-      </table>
+      <div class="card-title">Utilización de Muelles</div>
+      <div class="chart-wrap" style="height:220px;">
+        <canvas id="chart-dash-muelles" role="img" aria-label="Utilización de muelles">Ocupación por tipo de muelle.</canvas>
+      </div>
     </div>
+  </div>
+
+  <!-- Tabla check-in: ocupa ancho completo -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div class="card-title" style="margin:0;">Citas del Día — Check-in <span id="fecha-hoy-dash" style="color:var(--accent);"></span></div>
+      <span style="font-size:11px;color:var(--text3);" id="dash-total-label"></span>
+    </div>
+    <table>
+      <thead><tr><th>Hora</th><th>Proveedor</th><th>Muelle</th><th>Llegada Real</th><th>Dwell</th><th>Estado</th><th>Acción</th></tr></thead>
+      <tbody id="dash-citas-tbody">
+        <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">Cargando citas...</td></tr>
+      </tbody>
+    </table>
   </div>
 </div>
 
@@ -620,11 +621,8 @@ textarea{resize:vertical;min-height:80px;}
   <div class="card">
     <table>
       <thead><tr><th>Folio</th><th>Proveedor</th><th>PO</th><th>Fecha</th><th>Muelle</th><th>Llegada Real</th><th>Dwell</th><th>Estado</th></tr></thead>
-      <tbody>
-        <tr><td><span class="tag">#CIT-085</span></td><td>Sigma Alimentos</td><td style="font-family:var(--mono);">PO-44490</td><td>20 Abr 09:00</td><td>S-01</td><td style="font-family:var(--mono);">09:05</td><td style="font-family:var(--mono);">58 min</td><td><span class="badge badge-green">Puntual</span></td></tr>
-        <tr><td><span class="tag">#CIT-086</span></td><td>Nestlé MX</td><td style="font-family:var(--mono);">PO-44495</td><td>20 Abr 11:00</td><td>R-01</td><td style="font-family:var(--mono);">11:23</td><td style="font-family:var(--mono);">82 min</td><td><span class="badge badge-amber">Tardío</span></td></tr>
-        <tr><td><span class="tag">#CIT-087</span></td><td>Grupo LALA</td><td style="font-family:var(--mono);">PO-44501</td><td>21 Abr 10:00</td><td>R-02</td><td style="font-family:var(--mono);">—</td><td style="font-family:var(--mono);">—</td><td><span class="badge badge-red">No-Show</span></td></tr>
-        <tr><td><span class="tag">#CIT-088</span></td><td>Bimbo</td><td style="font-family:var(--mono);">PO-44510</td><td>22 Abr 09:00</td><td>S-02</td><td style="font-family:var(--mono);">08:55</td><td style="font-family:var(--mono);">61 min</td><td><span class="badge badge-green">Puntual</span></td></tr>
+      <tbody id="historial-tbody">
+        <tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px;">Cargando historial...</td></tr>
       </tbody>
     </table>
   </div>
@@ -1066,13 +1064,14 @@ textarea{resize:vertical;min-height:80px;}
 <div class="modal-overlay" id="modal-add-muelle">
   <div class="modal">
     <div class="modal-title">Agregar Muelle</div>
-    <div class="form-group"><label>ID del Muelle</label><input placeholder="S-05"></div>
-    <div class="form-group"><label>Nombre</label><input placeholder="Muelle Norte 5"></div>
-    <div class="form-group"><label>Tipo</label><select><option>Secos</option><option>Refrigerados</option><option>Granel</option></select></div>
-    <div class="form-group"><label>Capacidad/Slot</label><input placeholder="2 unidades"></div>
+    <div class="form-group"><label>ID del Muelle</label><input id="nm-id" placeholder="S-05"></div>
+    <div class="form-group"><label>Nombre</label><input id="nm-nombre" placeholder="Muelle Norte 5"></div>
+    <div class="form-group"><label>Tipo</label><select id="nm-tipo"><option>Secos</option><option>Refrigerados</option><option>Granel</option></select></div>
+    <div class="form-group"><label>Capacidad/Slot</label><input id="nm-capacidad" placeholder="2 unidades"></div>
+    <div class="form-group"><label>Estado</label><select id="nm-estado"><option>Activo</option><option>Mantenimiento</option></select></div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-outline" style="flex:1;" onclick="closeModal('modal-add-muelle')">Cancelar</button>
-      <button class="btn btn-primary" style="flex:2;" onclick="closeModal('modal-add-muelle');showNotif('Muelle creado','El muelle ha sido agregado','success')">Guardar</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="guardarMuelle()">Guardar en Sheets</button>
     </div>
   </div>
 </div>
@@ -1091,6 +1090,70 @@ textarea{resize:vertical;min-height:80px;}
     <div style="display:flex;gap:8px;">
       <button class="btn btn-outline" style="flex:1;" onclick="closeModal('modal-add-regla')">Cancelar</button>
       <button class="btn btn-primary" style="flex:2;" onclick="closeModal('modal-add-regla');showNotif('Regla creada','Bloqueo programado exitosamente','success')">Guardar Regla</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Check-in / Liberar Muelle -->
+<div class="modal-overlay" id="modal-checkin">
+  <div class="modal">
+    <div class="modal-title" id="checkin-modal-title">Registrar Llegada</div>
+    <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:11px;color:var(--text3);">FOLIO</span>
+        <span class="tag" id="ci-folio">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:11px;color:var(--text3);">PROVEEDOR</span>
+        <span style="font-size:13px;font-weight:500;" id="ci-proveedor">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:11px;color:var(--text3);">HORA CITA</span>
+        <span style="font-family:var(--mono);color:var(--accent);" id="ci-hora-cita">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <span style="font-size:11px;color:var(--text3);">MUELLE</span>
+        <span style="font-family:var(--mono);" id="ci-muelle">—</span>
+      </div>
+    </div>
+
+    <!-- Sección Llegada -->
+    <div id="ci-sec-llegada">
+      <div class="form-group">
+        <label>Hora de Llegada al Muelle</label>
+        <input type="time" id="ci-hora-llegada" style="font-size:18px;text-align:center;font-family:var(--mono);">
+      </div>
+      <div class="info-box" style="margin-bottom:16px;">
+        La hora actual ya viene precargada. Ajústala si hay diferencia con el reloj de la caseta.
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="closeModal('modal-checkin')">Cancelar</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="confirmarCheckin()">📍 Confirmar Llegada</button>
+      </div>
+    </div>
+
+    <!-- Sección Liberar -->
+    <div id="ci-sec-liberar" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:14px;">
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">LLEGÓ A LAS</div>
+          <div style="font-family:var(--mono);font-size:18px;color:var(--accent);" id="ci-llego-a">09:00</div>
+        </div>
+        <div style="font-size:24px;color:var(--text3);">→</div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">TIEMPO EN MUELLE</div>
+          <div style="font-family:var(--mono);font-size:18px;color:var(--warn);" id="ci-dwell-live">— min</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Hora de Salida del Muelle</label>
+        <input type="time" id="ci-hora-salida" style="font-size:18px;text-align:center;font-family:var(--mono);">
+      </div>
+      <div id="ci-puntualidad-preview" style="margin-bottom:14px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="closeModal('modal-checkin')">Cancelar</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="confirmarLiberar()">🚛 Liberar Muelle</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1125,10 +1188,11 @@ const APP_URL         = 'https://raquel-espinosa.github.io/Regis-Citas/';
 function sheetsGet(tab) {
   return new Promise((resolve) => {
     const cbName = '_cb_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+    // Timeout de 8 segundos — si Sheets no responde, devuelve [] sin bloquear
     const timeoutId = setTimeout(() => {
       resolve([]);
       cleanup();
-    }, 10000);
+    }, 8000);
 
     function cleanup() {
       clearTimeout(timeoutId);
@@ -1206,15 +1270,10 @@ const ADMIN_USER = {
   initials: 'AD'
 };
 
-let PROVEEDORES = [
-  {id:'P001',nombre:'Sigma Alimentos',rfc:'SAL980312XQ1',email:'sigma@proveedor.mx',contacto:'Juan García',tel:'+52 55 5000 1234',tipo:'Secos',citas:8,adherencia:96,activo:true,acceso:true},
-  {id:'P002',nombre:'Nestlé MX',rfc:'NES890105AB3',email:'nestle@proveedor.mx',contacto:'Ana López',tel:'+52 55 5555 0001',tipo:'Refrigerados',citas:6,adherencia:92,activo:true,acceso:true},
-  {id:'P003',nombre:'Grupo LALA',rfc:'GLA750210CD7',email:'lala@proveedor.mx',contacto:'Roberto Díaz',tel:'+52 81 8000 2222',tipo:'Refrigerados',citas:5,adherencia:80,activo:true,acceso:true},
-  {id:'P004',nombre:'Bimbo Logistics',rfc:'BIM6501145EF2',email:'bimbo@proveedor.mx',contacto:'María Torres',tel:'+52 55 5700 9900',tipo:'Secos',citas:7,adherencia:86,activo:true,acceso:true},
-  {id:'P005',nombre:'Maseca / Gruma',rfc:'GRU920830GH9',email:'maseca@proveedor.mx',contacto:'Carlos Ruiz',tel:'+52 81 8181 1111',tipo:'Granel',citas:4,adherencia:75,activo:true,acceso:false},
-  {id:'P006',nombre:'Sabritas',rfc:'SAB851020IJ4',email:'sabritas@proveedor.mx',contacto:'Lucía Vega',tel:'+52 55 5000 8800',tipo:'Secos',citas:6,adherencia:79,activo:true,acceso:true},
-  {id:'P007',nombre:'La Costeña',rfc:'LAC780615KL8',email:'lacostena@proveedor.mx',contacto:'Ernesto Silva',tel:'+52 55 5677 4321',tipo:'Secos',citas:3,adherencia:83,activo:false,acceso:false},
-];
+// Lista de proveedores — se carga desde Google Sheets al iniciar sesión.
+// NO se precargan datos hardcodeados para evitar que aparezcan datos
+// que no están en la hoja de Google Sheets.
+let PROVEEDORES = [];
 
 let currentUser = null;
 let selDate = null, selSlot = null, step = 1;
@@ -1246,13 +1305,28 @@ async function doLogin() {
     return;
   }
 
-  // ── 1. Verificar si es el administrador (sin consultar Sheets)
+  // ── Admin: entra SIN consultar Sheets, de forma inmediata
   if (email === ADMIN_USER.email && pass === ADMIN_USER.pass) {
-    iniciarSesion(ADMIN_USER);
+    loginBtnState(false);
+    currentUser = { ...ADMIN_USER };
+
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('ua-name').textContent   = ADMIN_USER.name;
+    document.getElementById('ua-role').textContent   = 'ADMINISTRADOR';
+    document.getElementById('ua-avatar').textContent = ADMIN_USER.initials;
+    document.getElementById('ua-avatar').style.background = 'rgba(59,130,246,0.2)';
+    document.getElementById('ua-avatar').style.color      = 'var(--accent2)';
+    document.getElementById('admin-nav').style.display    = '';
+    document.getElementById('proveedor-nav').style.display = 'none';
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-pass').value  = '';
+
+    showPage('dashboard');
     return;
   }
 
-  // ── 2. Es proveedor — consultar pestaña "Usuarios" en Google Sheets
+  // ── Proveedor: consultar pestaña "Usuarios" en Google Sheets
   loginBtnState(true);
   err.textContent = 'Correo o contraseña incorrectos. Intenta de nuevo.';
 
@@ -1260,14 +1334,12 @@ async function doLogin() {
     const usuarios = await sheetsGet('Usuarios');
 
     if (!usuarios || usuarios.length === 0) {
-      // Sheets no respondió o pestaña vacía — mostrar error descriptivo
       err.textContent = 'No se pudo conectar con la base de datos. Intenta en unos segundos.';
       err.style.display = 'block';
       loginBtnState(false);
       return;
     }
 
-    // Buscar el usuario por email (insensible a mayúsculas) y contraseña
     const userRow = usuarios.find(u =>
       u.email && u.email.trim().toLowerCase() === email &&
       u.password_hash && String(u.password_hash).trim() === pass &&
@@ -1280,35 +1352,21 @@ async function doLogin() {
       return;
     }
 
-    // Usuario encontrado en Sheets ✓
-    const initials = (userRow.nombre || userRow.empresa || email)
-      .trim().substring(0, 2).toUpperCase();
-
+    const initials = (userRow.nombre || userRow.empresa || email).trim().substring(0, 2).toUpperCase();
     const userData = {
-      email,
-      pass,
-      role:     (userRow.rol || 'proveedor').toLowerCase(),
-      name:     userRow.nombre  || email,
-      empresa:  userRow.empresa || '',
+      email, pass,
+      role:    (userRow.rol || 'proveedor').toLowerCase(),
+      name:    userRow.nombre  || email,
+      empresa: userRow.empresa || '',
       initials
     };
 
-    // Cargar también los datos del proveedor para el perfil
-    const provData = PROVEEDORES.find(p => p.email === email);
-    if (!provData && userRow.empresa) {
-      // Agregar dinámicamente si vino de Sheets y no estaba en la lista local
+    if (userRow.empresa) {
       PROVEEDORES.push({
-        id: 'P' + Date.now(),
-        nombre:     userRow.empresa,
-        rfc:        '',
-        email,
-        contacto:   userRow.nombre || '',
-        tel:        '',
-        tipo:       'Secos',
-        citas:      0,
-        adherencia: 100,
-        activo:     true,
-        acceso:     true
+        id: 'P' + Date.now(), nombre: userRow.empresa,
+        rfc: '', email, contacto: userRow.nombre || '',
+        tel: '', tipo: 'Secos', citas: 0, adherencia: 100,
+        activo: true, acceso: true
       });
     }
 
@@ -1364,8 +1422,13 @@ async function iniciarSesion(user) {
 }
 
 function doLogout() {
-  currentUser = null;
-  chartsOk    = false;
+  currentUser   = null;
+  chartsOk      = false;
+  _dataCargada  = false; // resetear para que el próximo login cargue datos frescos
+  DATA_CITAS              = [];
+  DATA_PROVEEDORES_SHEETS = [];
+  DATA_MUELLES            = [];
+  PROVEEDORES.length      = 0;
   loginBtnState(false);
   document.getElementById('app').style.display          = 'none';
   document.getElementById('login-screen').style.display = 'flex';
@@ -1382,50 +1445,70 @@ function showPage(id) {
   document.querySelectorAll('.nav-item').forEach(n => {
     if(n.getAttribute('onclick') && n.getAttribute('onclick').includes("'"+id+"'")) n.classList.add('active');
   });
+  // Cargas de datos: siempre con setTimeout para no bloquear el render
   if(id==='kpis')        setTimeout(renderCharts, 80);
-  if(id==='proveedores') cargarProveedoresTabla();
-  if(id==='historial')   cargarHistorial();
-  if(id==='p-agendar')   renderCalendar();
-  if(id==='p-miscitas')  cargarMisCitas();
-  if(id==='aprobacion')  cargarAprobacion();
-  if(id==='dashboard')   cargarDashboard();
-  if(id==='muelles')     cargarMuellesTabla();
+  if(id==='proveedores') setTimeout(cargarProveedoresTabla, 0);
+  if(id==='historial')   setTimeout(cargarHistorial, 0);
+  if(id==='p-agendar')   setTimeout(renderCalendar, 0);
+  if(id==='p-miscitas')  setTimeout(cargarMisCitas, 0);
+  if(id==='aprobacion')  setTimeout(cargarAprobacion, 0);
+  if(id==='dashboard')   setTimeout(cargarDashboard, 0);
+  if(id==='muelles')     setTimeout(cargarMuellesTabla, 0);
 }
 
 // ══════════════════════════════════════════════════════
 //  CARGA INICIAL — se llama justo después del login
 // ══════════════════════════════════════════════════════
-let DATA_CITAS     = [];
+let DATA_CITAS              = [];
 let DATA_PROVEEDORES_SHEETS = [];
-let DATA_MUELLES   = [];
+let DATA_MUELLES            = [];
+let _dataCargada            = false; // bandera: evita recargar Sheets en cada navegación
 
-async function cargarDatosSheets() {
-  // Carga en paralelo las 3 tablas principales
+// ══════════════════════════════════════════════════════
+//  CARGA DE DATOS — siempre lee desde Sheets, nunca usa caché
+// ══════════════════════════════════════════════════════
+async function cargarDatosSheets(forzar = false) {
+  // Si ya se cargó y no se fuerza recarga, usar caché en memoria
+  if (_dataCargada && !forzar) return true;
+
   try {
+    showNotif('Cargando datos...', 'Leyendo Google Sheets', 'info');
+
     const [citas, provs, muelles] = await Promise.all([
       sheetsGet('Citas'),
       sheetsGet('Proveedores'),
       sheetsGet('Muelles')
     ]);
-    DATA_CITAS               = Array.isArray(citas)   ? citas   : [];
-    DATA_PROVEEDORES_SHEETS  = Array.isArray(provs)   ? provs   : [];
-    DATA_MUELLES             = Array.isArray(muelles) ? muelles : [];
 
-    // Sincronizar lista local de PROVEEDORES con lo que viene de Sheets
+    // ── Limpiar arrays locales SIEMPRE antes de asignar
+    // Esto evita que datos hardcodeados o de sesiones previas
+    // se mezclen con los datos reales de Sheets
+    DATA_CITAS              = [];
+    DATA_PROVEEDORES_SHEETS = [];
+    DATA_MUELLES            = [];
+
+    // ── Asignar solo si Sheets devolvió datos válidos
+    if (Array.isArray(citas)   && citas.length   > 0) DATA_CITAS              = citas;
+    if (Array.isArray(provs)   && provs.length   > 0) DATA_PROVEEDORES_SHEETS = provs;
+    if (Array.isArray(muelles) && muelles.length > 0) DATA_MUELLES            = muelles;
+
+    // ── Sincronizar lista local de PROVEEDORES
+    // IMPORTANTE: vaciar primero la lista hardcodeada para que
+    // solo aparezcan los proveedores reales de Sheets
     if (DATA_PROVEEDORES_SHEETS.length > 0) {
+      PROVEEDORES.length = 0; // vacía el array sin romper referencias
       DATA_PROVEEDORES_SHEETS.forEach(p => {
-        const existe = PROVEEDORES.find(lp => lp.email === p.email);
-        if (!existe && p.nombre) {
+        if (p.nombre || p.email) {
           PROVEEDORES.push({
-            id:         p.proveedor_id || 'P' + Date.now(),
-            nombre:     p.nombre       || '',
-            rfc:        p.rfc          || '',
-            email:      p.email        || '',
-            contacto:   p.contacto     || '',
-            tel:        p.telefono     || '',
+            id:         p.proveedor_id   || 'P' + Date.now(),
+            nombre:     p.nombre         || p.email || '',
+            rfc:        p.rfc            || '',
+            email:      p.email          || '',
+            contacto:   p.contacto       || '',
+            tel:        p.telefono       || '',
             tipo:       p.tipo_mercancia || 'Secos',
-            citas:      0,
-            adherencia: 100,
+            citas:      DATA_CITAS.filter(c => c.proveedor_nombre === p.nombre).length,
+            adherencia: calcularAdherencia(p.nombre),
             activo:     String(p.activo).toUpperCase() === 'TRUE',
             acceso:     String(p.acceso_web).toUpperCase() === 'TRUE'
           });
@@ -1433,12 +1516,22 @@ async function cargarDatosSheets() {
       });
     }
 
-    // Rellenar selects de proveedores y muelles en el modal
     poblarSelectProveedores();
     poblarSelectMuelles();
 
+    _dataCargada = true; // marcar que ya se cargó — no volver a pedir a Sheets hasta Sync manual
+
+    const total = DATA_CITAS.length + DATA_PROVEEDORES_SHEETS.length + DATA_MUELLES.length;
+    showNotif('Datos cargados ✓',
+      `${DATA_CITAS.length} citas · ${DATA_PROVEEDORES_SHEETS.length} proveedores · ${DATA_MUELLES.length} muelles`,
+      'success');
+
+    return true;
+
   } catch(e) {
-    console.error('cargarDatosSheets:', e);
+    console.error('cargarDatosSheets ERROR:', e);
+    showNotif('Error al cargar datos', 'No se pudo leer Google Sheets. Verifica el Apps Script.', 'danger');
+    return false;
   }
 }
 
@@ -1473,43 +1566,427 @@ function poblarSelectMuelles() {
 }
 
 // ══════ DASHBOARD — carga desde Sheets ══════
+// ══════════════════════════════════════════════════════
+//  DASHBOARD — tabla con botones check-in
+// ══════════════════════════════════════════════════════
 async function cargarDashboard() {
-  const hoy = new Date().toLocaleDateString('es-MX');
-  if (DATA_CITAS.length === 0) await cargarDatosSheets();
+  // Fecha y subtítulo
+  const ahora    = new Date();
+  const hoyLabel = ahora.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const sub = document.getElementById('dash-subtitle');
+  if (sub) sub.innerHTML = `${hoyLabel} · <span class="dot-live"></span> En vivo`;
+  const elFecha = document.getElementById('fecha-hoy-dash');
+  if (elFecha) elFecha.textContent = '— ' + ahora.toLocaleDateString('es-MX',{day:'numeric',month:'short'});
 
-  const citasHoy = DATA_CITAS.filter(c => c.fecha && String(c.fecha).includes(
-    new Date().toLocaleDateString('es-MX', {day:'2-digit',month:'2-digit',year:'numeric'})
-  ));
-
-  // Tabla de próximas citas
   const tbody = document.getElementById('dash-citas-tbody');
+  if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px;">
+    <span style="animation:pulse 1.5s infinite;display:inline-block;">⏳ Conectando con Google Sheets...</span>
+  </td></tr>`;
+
+  // Cargar datos
+  await cargarDatosSheets();
+
+  // ── KPIs calculados desde Sheets
+  const total   = DATA_CITAS.length;
+  const { adh, dwellAvg, noshow } = calcularKPIsGlobales();
+  const noshowPct = total > 0 ? Math.round((noshow/total)*100) : 0;
+
+  const setKpi = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  setKpi('dash-kpi-total',   total   || '0');
+  setKpi('dash-kpi-total-d', total === 0 ? 'sin datos en Sheets' : 'registradas en Sheets');
+  setKpi('dash-kpi-adh',     adh     > 0 ? adh+'%' : '—');
+  setKpi('dash-kpi-dwell',   dwellAvg > 0 ? dwellAvg+' min' : '—');
+  setKpi('dash-kpi-noshow',  noshow  || '0');
+  setKpi('dash-kpi-noshow-d', total > 0 ? noshowPct+'% del total' : 'sin datos');
+
+  // Colorear adherencia
+  const adhEl = document.getElementById('dash-kpi-adh');
+  if (adhEl) adhEl.className = 'kpi-value ' + (adh >= 90 ? 'green' : adh >= 75 ? 'amber' : 'red');
+
+  // ── Gráfica 1: Citas por Estado (dona)
+  const estados = {};
+  DATA_CITAS.forEach(c => {
+    const e = String(c.estado||'Sin estado').trim();
+    estados[e] = (estados[e] || 0) + 1;
+  });
+  const estadoLabels = Object.keys(estados);
+  const estadoData   = Object.values(estados);
+  const estadoColors = estadoLabels.map(e => ({
+    'Confirmada':'#3b82f6','Pendiente':'#7a8aaa','En Muelle':'#00e5b8',
+    'Puntual':'#10b981','Tardío':'#f59e0b','No-Show':'#ef4444',
+    'Cancelada':'#445070','Rechazada':'#ef4444'
+  }[e] || '#445070'));
+
+  // Destruir gráfica anterior si existe
+  if (window._chartEstados) { window._chartEstados.destroy(); }
+  const ctxE = document.getElementById('chart-dash-estados');
+  if (ctxE) {
+    if (estadoLabels.length === 0) {
+      ctxE.parentElement.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px;font-size:12px;">Sin datos de Sheets aún</div>';
+    } else {
+      window._chartEstados = new Chart(ctxE, {
+        type: 'doughnut',
+        data: {
+          labels:   estadoLabels,
+          datasets: [{ data: estadoData, backgroundColor: estadoColors, borderWidth: 0 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, cutout: '65%',
+          plugins: { legend: { position:'bottom', labels:{ color:'#7a8aaa', font:{size:10}, boxWidth:10, padding:10 } } }
+        }
+      });
+    }
+  }
+
+  // ── Gráfica 2: Muelles — citas por tipo de muelle (barras)
+  const porMuelle = {};
+  DATA_CITAS.forEach(c => {
+    const m = String(c.muelle_id||'Sin asignar').trim();
+    porMuelle[m] = (porMuelle[m] || 0) + 1;
+  });
+  const muelleLabels = Object.keys(porMuelle).sort();
+  const muelleData   = muelleLabels.map(m => porMuelle[m]);
+  const muelleColors = muelleLabels.map(m => {
+    if (m.startsWith('R')) return 'rgba(0,229,184,0.7)';
+    if (m.startsWith('G')) return 'rgba(245,158,11,0.7)';
+    return 'rgba(59,130,246,0.7)';
+  });
+
+  if (window._chartMuelles) { window._chartMuelles.destroy(); }
+  const ctxM = document.getElementById('chart-dash-muelles');
+  if (ctxM) {
+    if (muelleLabels.length === 0) {
+      ctxM.parentElement.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px;font-size:12px;">Sin datos de muelles en Sheets</div>';
+    } else {
+      window._chartMuelles = new Chart(ctxM, {
+        type: 'bar',
+        data: {
+          labels:   muelleLabels,
+          datasets: [{ label:'Citas', data: muelleData, backgroundColor: muelleColors, borderRadius: 4 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend:{ display:false } },
+          scales: {
+            x: { ticks:{ color:'#7a8aaa', font:{size:10} }, grid:{ display:false } },
+            y: { ticks:{ color:'#7a8aaa', stepSize:1 }, grid:{ color:'#232d42' }, beginAtZero:true }
+          }
+        }
+      });
+    }
+  }
+
+  // ── Tabla check-in
   if (!tbody) return;
+  const lbl = document.getElementById('dash-total-label');
 
-  const pendientes = DATA_CITAS
-    .filter(c => c.estado && ['Pendiente','Confirmada','En Tránsito','En Muelle'].includes(c.estado))
-    .slice(0, 8);
-
-  if (pendientes.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">No hay citas próximas registradas en Google Sheets</td></tr>';
+  if (DATA_CITAS.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px;">
+      No hay citas en Google Sheets.<br>
+      <span style="font-size:11px;">Verifica que la pestaña "Citas" tenga datos y encabezados correctos.</span>
+    </td></tr>`;
     return;
   }
 
-  const estadoBadge = {
-    'Pendiente':   'badge-gray',
-    'Confirmada':  'badge-green',
-    'En Tránsito': 'badge-amber',
-    'En Muelle':   'badge-teal',
-    'Rechazada':   'badge-red',
-    'No-Show':     'badge-red'
-  };
+  const activas = DATA_CITAS.filter(c => {
+    const est = String(c.estado||'').trim();
+    return est !== 'Rechazada' && est !== 'Cancelada';
+  }).slice(0, 20);
 
-  tbody.innerHTML = pendientes.map(c => `
-    <tr>
-      <td style="font-family:var(--mono);">${c.hora || '—'}</td>
-      <td>${c.proveedor_nombre || '—'}</td>
-      <td>${c.muelle_id || '—'}</td>
-      <td><span class="badge ${estadoBadge[c.estado] || 'badge-gray'}">${c.estado || '—'}</span></td>
-    </tr>`).join('');
+  if (lbl) lbl.textContent = `${activas.length} citas activas de ${DATA_CITAS.length} totales`;
+
+  if (activas.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px;">
+      Todas las citas están completadas, rechazadas o canceladas.
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = activas.map((c, idx) => renderFilaCheckin(c, idx)).join('');
+
+  clearInterval(window._dwellTimer);
+  window._dwellTimer = setInterval(() => {
+    DATA_CITAS.filter(c => String(c.estado).trim() === 'En Muelle' && c.llegada_real).forEach((c, idx) => {
+      const safeId = 'ci' + idx;
+      const dwellEl = document.getElementById('dwell-' + safeId);
+      if (dwellEl) dwellEl.textContent = calcularDwellLive(c.llegada_real) + ' min';
+    });
+  }, 30000);
+}
+
+// Mapa global para lookup de citas por índice seguro
+// Se llena cada vez que se renderiza la tabla
+const _citaMap = {};
+
+function renderFilaCheckin(c, idx) {
+  // Usar índice numérico en onclick para evitar que caracteres
+  // especiales del folio (#, -, espacios) rompan el atributo HTML
+  const safeIdx = String(idx);
+  _citaMap[safeIdx] = c;  // guardar referencia por índice
+
+  const folio   = String(c.folio || '—');
+  const safeId  = 'ci' + safeIdx;   // id del <tr> limpio
+  const hora    = limpiarHora(c.hora);
+  const llegada = c.llegada_real ? limpiarHora(c.llegada_real) : '—';
+  const estado  = String(c.estado || '').trim();
+
+  const dwell = c.dwell_minutos
+    ? c.dwell_minutos + ' min'
+    : (estado === 'En Muelle' && c.llegada_real
+        ? `<span class="dwell-live" id="dwell-${safeId}">${calcularDwellLive(c.llegada_real)} min</span>`
+        : '—');
+
+  const estadoBadge = {
+    'Pendiente':  'badge-gray',
+    'Confirmada': 'badge-green',
+    'En Muelle':  'badge-teal',
+    'Puntual':    'badge-green',
+    'Tardío':     'badge-amber',
+    'No-Show':    'badge-red',
+    'Cancelada':  'badge-red'
+  };
+  const badge = estadoBadge[estado] || 'badge-gray';
+
+  // Botones usan índice numérico — sin folio en el atributo onclick
+  let botones = '';
+  if (estado === 'Confirmada' || estado === 'Pendiente') {
+    botones = `
+      <button class="checkin-btn llegada" onclick="abrirCheckin(${safeIdx},'llegada')">📍 Llegada</button>
+      <button class="checkin-btn noshow" style="margin-top:4px;" onclick="registrarNoShow(${safeIdx})">✕ No-Show</button>`;
+  } else if (estado === 'En Muelle') {
+    botones = `<button class="checkin-btn liberar" onclick="abrirCheckin(${safeIdx},'liberar')">🚛 Liberar</button>`;
+  } else {
+    botones = `<span style="font-size:11px;color:var(--text3);">${estado || 'Completada'}</span>`;
+  }
+
+  return `<tr id="fila-${safeId}">
+    <td style="font-family:var(--mono);font-weight:500;">${hora}</td>
+    <td>${c.proveedor_nombre || '—'}</td>
+    <td><span class="tag">${c.muelle_id || '—'}</span></td>
+    <td><span class="hora-llegada">${llegada}</span></td>
+    <td>${dwell}</td>
+    <td><span class="badge ${badge}">${estado || '—'}</span></td>
+    <td><div style="display:flex;flex-direction:column;gap:4px;">${botones}</div></td>
+  </tr>`;
+}
+
+// Calcula minutos transcurridos desde llegada hasta ahora (para el timer en vivo)
+function calcularDwellLive(llegadaStr) {
+  const h = limpiarHora(llegadaStr);
+  if (!h || h === '—') return 0;
+  const [hh, mm] = h.split(':').map(Number);
+  const ahora = new Date();
+  const minLlegada = hh * 60 + mm;
+  const minAhora   = ahora.getHours() * 60 + ahora.getMinutes();
+  return Math.max(0, minAhora - minLlegada);
+}
+
+// ══════════════════════════════════════════════════════
+//  CHECK-IN — Abrir modal según modo (llegada / liberar)
+// ══════════════════════════════════════════════════════
+let checkinIdxActivo = -1;
+let checkinModo      = '';
+
+function abrirCheckin(idx, modo) {
+  // Buscar por índice en el mapa — evita problemas con # y caracteres especiales
+  const cita = _citaMap[String(idx)];
+  if (!cita) {
+    showNotif('Error', 'No se pudo encontrar la cita. Recarga el dashboard.', 'danger');
+    return;
+  }
+
+  checkinIdxActivo = idx;
+  checkinModo      = modo;
+
+  // Rellenar datos del modal
+  document.getElementById('ci-folio').textContent     = cita.folio || '—';
+  document.getElementById('ci-proveedor').textContent = cita.proveedor_nombre || '—';
+  document.getElementById('ci-hora-cita').textContent = limpiarHora(cita.hora);
+  document.getElementById('ci-muelle').textContent    = cita.muelle_id || '—';
+
+  const ahora      = new Date();
+  const horaActual = String(ahora.getHours()).padStart(2,'0') + ':' + String(ahora.getMinutes()).padStart(2,'0');
+
+  if (modo === 'llegada') {
+    document.getElementById('checkin-modal-title').textContent = '📍 Registrar Llegada al Muelle';
+    document.getElementById('ci-sec-llegada').style.display   = '';
+    document.getElementById('ci-sec-liberar').style.display   = 'none';
+    document.getElementById('ci-hora-llegada').value          = horaActual;
+
+  } else {
+    document.getElementById('checkin-modal-title').textContent = '🚛 Liberar Muelle';
+    document.getElementById('ci-sec-llegada').style.display   = 'none';
+    document.getElementById('ci-sec-liberar').style.display   = '';
+    document.getElementById('ci-hora-salida').value           = horaActual;
+
+    const llegada = limpiarHora(cita.llegada_real);
+    document.getElementById('ci-llego-a').textContent    = llegada;
+    document.getElementById('ci-dwell-live').textContent = calcularDwellLive(cita.llegada_real) + ' min';
+
+    const prev      = document.getElementById('ci-puntualidad-preview');
+    const esPuntual = esCitaPuntual(cita.hora, cita.llegada_real);
+    prev.innerHTML  = esPuntual
+      ? `<div class="success-box">✓ Llegó <strong>puntual</strong> (dentro de 15 min de tolerancia). Se registrará como <strong>Puntual</strong>.</div>`
+      : `<div class="warn-box">⚠ Llegó <strong>tarde</strong>. Se registrará como <strong>Tardío</strong>.</div>`;
+
+    clearInterval(window._dwellModalTimer);
+    window._dwellModalTimer = setInterval(() => {
+      const d = document.getElementById('ci-dwell-live');
+      if (d) d.textContent = calcularDwellLive(cita.llegada_real) + ' min';
+    }, 10000);
+  }
+
+  openModal('modal-checkin');
+}
+
+// ── Confirmar llegada
+async function confirmarCheckin() {
+  const horaLlegada = document.getElementById('ci-hora-llegada').value;
+  if (!horaLlegada) { showNotif('Falta la hora','Ingresa la hora de llegada','warn'); return; }
+
+  const cita = _citaMap[String(checkinIdxActivo)];
+  if (!cita) { showNotif('Error','No se encontró la cita','danger'); return; }
+
+  closeModal('modal-checkin');
+
+  const esPunt = esCitaPuntual(cita.hora, horaLlegada);
+
+  // Guardar en Sheets usando el folio real de la cita
+  await sheetsPost('Citas', 'actualizar', {
+    llegada_real: horaLlegada,
+    estado:       'En Muelle'
+  }, { columna: 'folio', valor: String(cita.folio || '').trim() });
+
+  // Actualizar dato local
+  cita.llegada_real = horaLlegada;
+  cita.estado       = 'En Muelle';
+
+  // Redibujar fila usando el mismo índice
+  const safeId = 'ci' + checkinIdxActivo;
+  const fila   = document.getElementById('fila-' + safeId);
+  if (fila) fila.outerHTML = renderFilaCheckin(cita, checkinIdxActivo);
+
+  showNotif('Llegada registrada ✓',
+    `${cita.proveedor_nombre} llegó a las ${horaLlegada} — ${esPunt ? '⭐ Puntual' : '⚠ Tardío'}`,
+    esPunt ? 'success' : 'warn');
+}
+
+// ── Confirmar liberación del muelle
+async function confirmarLiberar() {
+  clearInterval(window._dwellModalTimer);
+  const horaSalida = document.getElementById('ci-hora-salida').value;
+  if (!horaSalida) { showNotif('Falta la hora','Ingresa la hora de salida','warn'); return; }
+
+  const cita = _citaMap[String(checkinIdxActivo)];
+  if (!cita) { showNotif('Error','No se encontró la cita','danger'); return; }
+
+  closeModal('modal-checkin');
+
+  const dwell      = calcularDwellMinutos(cita.llegada_real, horaSalida);
+  const esPuntual  = esCitaPuntual(cita.hora, cita.llegada_real);
+  const estadoFinal = cita.llegada_real ? (esPuntual ? 'Puntual' : 'Tardío') : 'No-Show';
+
+  await sheetsPost('Citas', 'actualizar', {
+    hora_salida:   horaSalida,
+    dwell_minutos: dwell,
+    estado:        estadoFinal
+  }, { columna: 'folio', valor: String(cita.folio || '').trim() });
+
+  cita.hora_salida   = horaSalida;
+  cita.dwell_minutos = dwell;
+  cita.estado        = estadoFinal;
+
+  const safeId = 'ci' + checkinIdxActivo;
+  const fila   = document.getElementById('fila-' + safeId);
+  if (fila) fila.outerHTML = renderFilaCheckin(cita, checkinIdxActivo);
+
+  showNotif('Muelle liberado ✓',
+    `Dwell: ${dwell} min · Estado: ${estadoFinal}`,
+    estadoFinal === 'Puntual' ? 'success' : 'warn');
+}
+
+// ── Registrar No-Show
+async function registrarNoShow(idx) {
+  const cita = _citaMap[String(idx)];
+  if (!cita) { showNotif('Error','No se encontró la cita','danger'); return; }
+  if (!confirm(`¿Confirmar No-Show para ${cita.proveedor_nombre || 'este proveedor'}?`)) return;
+
+  await sheetsPost('Citas', 'actualizar',
+    { estado: 'No-Show' },
+    { columna: 'folio', valor: String(cita.folio || '').trim() }
+  );
+  cita.estado = 'No-Show';
+
+  const safeId = 'ci' + idx;
+  const fila   = document.getElementById('fila-' + safeId);
+  if (fila) fila.outerHTML = renderFilaCheckin(cita, idx);
+
+  showNotif('No-Show registrado', `${cita.proveedor_nombre || 'Proveedor'} marcado como No-Show`, 'danger');
+}
+
+// ══════════════════════════════════════════════════════
+//  CÁLCULO CORRECTO DE ADHERENCIA
+//  Basado en llegada_real vs hora de la cita (+ 15 min tolerancia)
+// ══════════════════════════════════════════════════════
+function horaAMinutos(horaStr) {
+  const h = limpiarHora(String(horaStr || ''));
+  if (!h || h === '—') return null;
+  const partes = h.split(':').map(Number);
+  if (partes.length < 2 || isNaN(partes[0]) || isNaN(partes[1])) return null;
+  return partes[0] * 60 + partes[1];
+}
+
+function esCitaPuntual(horaCita, horaLlegada, toleranciaMin = 15) {
+  const minCita    = horaAMinutos(horaCita);
+  const minLlegada = horaAMinutos(horaLlegada);
+  if (minCita === null || minLlegada === null) return false;
+  return minLlegada <= minCita + toleranciaMin;
+}
+
+function calcularDwellMinutos(horaEntrada, horaSalida) {
+  const minEntrada = horaAMinutos(horaEntrada);
+  const minSalida  = horaAMinutos(horaSalida);
+  if (minEntrada === null || minSalida === null) return 0;
+  return Math.max(0, minSalida - minEntrada);
+}
+
+function calcularAdherencia(nombreProveedor) {
+  // Solo citas que ya tienen resultado (llegada registrada o No-Show)
+  const completadas = DATA_CITAS.filter(c =>
+    c.proveedor_nombre === nombreProveedor &&
+    (c.llegada_real || c.estado === 'No-Show' || c.estado === 'Puntual' || c.estado === 'Tardío')
+  );
+
+  if (completadas.length === 0) return '—';
+
+  const aTiempo = completadas.filter(c => {
+    if (c.estado === 'No-Show') return false;
+    if (c.estado === 'Puntual') return true;   // ya calculado previamente
+    if (c.estado === 'Tardío')  return false;
+    // Si tiene llegada_real, calculamos en tiempo real
+    return esCitaPuntual(c.hora, c.llegada_real);
+  }).length;
+
+  return Math.round((aTiempo / completadas.length) * 100);
+}
+
+// KPIs globales calculados correctamente
+function calcularKPIsGlobales() {
+  const completadas = DATA_CITAS.filter(c =>
+    c.llegada_real || c.estado === 'No-Show' || c.estado === 'Puntual' || c.estado === 'Tardío'
+  );
+  const total    = completadas.length;
+  const aTiempo  = completadas.filter(c => {
+    if (c.estado === 'No-Show') return false;
+    if (c.estado === 'Puntual') return true;
+    if (c.estado === 'Tardío')  return false;
+    return esCitaPuntual(c.hora, c.llegada_real);
+  }).length;
+  const noshow   = completadas.filter(c => c.estado === 'No-Show').length;
+  const dwells   = completadas.map(c => Number(c.dwell_minutos)).filter(n => n > 0);
+  const dwellAvg = dwells.length > 0 ? Math.round(dwells.reduce((a,b)=>a+b,0)/dwells.length) : 0;
+  const adh      = total > 0 ? Math.round((aTiempo / total) * 100) : 0;
+  return { total, aTiempo, noshow, dwellAvg, adh };
 }
 
 // ══════ APROBACIÓN — carga pendientes desde Sheets ══════
@@ -1539,7 +2016,7 @@ async function cargarAprobacion() {
       <td><span class="tag">${folio}</span></td>
       <td>${c.proveedor_nombre || '—'}</td>
       <td style="font-family:var(--mono);">${c.po_number || '—'}</td>
-      <td style="font-family:var(--mono);">${c.fecha || ''} ${c.hora || ''}</td>
+      <td style="font-family:var(--mono);">${limpiarFecha(c.fecha)} ${limpiarHora(c.hora)}</td>
       <td><span class="badge ${tipoBadge[c.tipo_mercancia] || 'badge-gray'}">${c.tipo_mercancia || '—'}</span></td>
       <td>${c.tipo_unidad || '—'}</td>
       <td>${c.pallets || '—'}</td>
@@ -1599,21 +2076,21 @@ async function cargarMuellesTabla() {
 // ══════ HISTORIAL ══════
 async function cargarHistorial() {
   if (DATA_CITAS.length === 0) await cargarDatosSheets();
-  const tbody = document.querySelector('#page-historial table tbody');
+  const tbody = document.getElementById('historial-tbody');
   if (!tbody) return;
   if (DATA_CITAS.length === 0) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px;">No hay citas registradas aún</td></tr>';
     return;
   }
-  const estadoBadge = { 'Puntual':'badge-green','Tardío':'badge-amber','No-Show':'badge-red','Pendiente':'badge-gray','Confirmada':'badge-teal' };
+  const estadoBadge = { 'Puntual':'badge-green','Tardío':'badge-amber','No-Show':'badge-red','Pendiente':'badge-gray','Confirmada':'badge-teal','En Muelle':'badge-teal','Cancelada':'badge-red' };
   tbody.innerHTML = [...DATA_CITAS].reverse().slice(0,50).map(c => `
     <tr>
       <td><span class="tag">${c.folio||'—'}</span></td>
       <td>${c.proveedor_nombre||'—'}</td>
       <td style="font-family:var(--mono);">${c.po_number||'—'}</td>
-      <td>${c.fecha||''} ${c.hora||''}</td>
+      <td>${limpiarFecha(c.fecha||'')} ${limpiarHora(c.hora||'')}</td>
       <td>${c.muelle_id||'—'}</td>
-      <td style="font-family:var(--mono);">${c.llegada_real||'—'}</td>
+      <td style="font-family:var(--mono);color:var(--accent);">${c.llegada_real ? limpiarHora(c.llegada_real) : '—'}</td>
       <td style="font-family:var(--mono);">${c.dwell_minutos ? c.dwell_minutos+' min' : '—'}</td>
       <td><span class="badge ${estadoBadge[c.estado]||'badge-gray'}">${c.estado||'—'}</span></td>
     </tr>`).join('');
@@ -1652,7 +2129,7 @@ async function cargarMisCitas() {
   tbody.innerHTML = misCitas.map(c => `
     <tr>
       <td><span class="tag">${c.folio||'—'}</span></td>
-      <td style="font-family:var(--mono);">${c.fecha||''} · ${c.hora||''}</td>
+      <td style="font-family:var(--mono);">${limpiarFecha(c.fecha)} · ${limpiarHora(c.hora)}</td>
       <td style="font-family:var(--mono);">${c.po_number||'—'}</td>
       <td>${c.tipo_unidad||'—'}</td>
       <td><span class="badge ${c.tipo_mercancia==='Secos'?'badge-blue':c.tipo_mercancia==='Refrigerados'?'badge-teal':'badge-amber'}">${c.tipo_mercancia||'—'}</span></td>
@@ -1714,14 +2191,8 @@ async function guardarCitaAdmin() {
 
 // ══════ KPIS — guardar resumen mensual ══════
 async function guardarKPIsMes() {
-  const total   = DATA_CITAS.length;
-  if (total === 0) return;
-  const aTiempo = DATA_CITAS.filter(c => c.estado === 'Puntual').length;
-  const noshow  = DATA_CITAS.filter(c => c.estado === 'No-Show').length;
-  const dwells  = DATA_CITAS.map(c => Number(c.dwell_minutos)).filter(n => n > 0);
-  const dwellAvg = dwells.length > 0 ? Math.round(dwells.reduce((a,b)=>a+b,0)/dwells.length) : 0;
-  const adh     = total > 0 ? Math.round((aTiempo/total)*100) : 0;
-
+  if (DATA_CITAS.length === 0) { showNotif('Sin datos','No hay citas cargadas aún','warn'); return; }
+  const { total, adh, dwellAvg, noshow } = calcularKPIsGlobales();
   await sheetsPost('KPIs', 'insertar', {
     fecha:           new Date().toLocaleDateString('es-MX'),
     adherencia_pct:  adh,
@@ -1730,7 +2201,7 @@ async function guardarKPIsMes() {
     noshow_count:    noshow,
     citas_total:     total
   });
-  showNotif('KPIs guardados ✓', `Resumen del mes registrado en Google Sheets`, 'success');
+  showNotif('KPIs guardados ✓', `Adherencia real: ${adh}% · Dwell: ${dwellAvg} min · No-Shows: ${noshow}`, 'success');
 }
 
 // ══════ NOTIFICATIONS ══════
@@ -2134,14 +2605,17 @@ function prevEmail(type) {
 
 // ══════ SYNC ══════
 async function syncSheets() {
-  showNotif('Sincronizando...','Conectando con Google Sheets...','info');
-  try {
-    const citas = await sheetsGet('Citas');
-    const provs  = await sheetsGet('Proveedores');
-    const total  = (citas ? citas.length : 0) + (provs ? provs.length : 0);
-    showNotif('Sincronizado ✓', `${total} registros cargados desde Google Sheets`, 'success');
-  } catch(e) {
-    showNotif('Error de conexión','No se pudo leer Google Sheets. Verifica el Apps Script.','danger');
+  _dataCargada = false; // forzar recarga desde Sheets
+  await cargarDatosSheets(true);
+  // Refrescar la página activa automáticamente
+  const activa = document.querySelector('.page.active');
+  if (activa) {
+    const id = activa.id.replace('page-', '');
+    if (id === 'dashboard')   cargarDashboard();
+    if (id === 'aprobacion')  cargarAprobacion();
+    if (id === 'proveedores') cargarProveedoresTabla();
+    if (id === 'historial')   cargarHistorial();
+    if (id === 'p-miscitas')  cargarMisCitas();
   }
 }
 
@@ -2282,6 +2756,104 @@ function renderCharts() {
     options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
       plugins:{legend:{position:'bottom',labels:{color:'#7a8aaa',font:{size:10},boxWidth:10,padding:14}}}}
   });
+}
+
+// ══════════════════════════════════════════════════════
+//  GUARDAR MUELLE EN GOOGLE SHEETS
+// ══════════════════════════════════════════════════════
+async function guardarMuelle() {
+  const id        = document.getElementById('nm-id').value.trim();
+  const nombre    = document.getElementById('nm-nombre').value.trim();
+  const tipo      = document.getElementById('nm-tipo').value;
+  const capacidad = document.getElementById('nm-capacidad').value.trim();
+  const estado    = document.getElementById('nm-estado').value;
+
+  if (!id || !nombre) {
+    showNotif('Faltan datos', 'El ID y el Nombre del muelle son obligatorios', 'warn');
+    return;
+  }
+
+  closeModal('modal-add-muelle');
+
+  const nuevoMuelle = { muelle_id: id, nombre, tipo, capacidad, estado, temperatura: '' };
+
+  const r = await sheetsPost('Muelles', 'insertar', nuevoMuelle);
+
+  // Actualizar lista local para que aparezca de inmediato
+  DATA_MUELLES.push(nuevoMuelle);
+  cargarMuellesTabla();
+  poblarSelectMuelles();
+
+  showNotif('Muelle guardado ✓', `${id} — ${nombre} registrado en Google Sheets`, 'success');
+
+  // Limpiar campos del modal
+  ['nm-id','nm-nombre','nm-capacidad'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  LIMPIAR FORMATO DE HORA
+//  Google Sheets devuelve las horas como Date ISO string
+//  ej: "1899-12-30T21:36:36.000Z" → convertir a "HH:MM"
+// ══════════════════════════════════════════════════════
+function limpiarHora(valor) {
+  if (!valor) return '—';
+  const s = String(valor);
+
+  // Si ya está en formato HH:MM o HH:MM:SS, tomar solo HH:MM
+  if (/^\d{1,2}:\d{2}/.test(s)) return s.slice(0, 5);
+
+  // Si viene como ISO Date de Sheets (1899-12-30T...)
+  if (s.includes('T') && s.includes(':')) {
+    try {
+      const d = new Date(s);
+      // Ajustar a zona horaria local sumando el offset
+      const utcH = d.getUTCHours();
+      const utcM = d.getUTCMinutes();
+      return String(utcH).padStart(2,'0') + ':' + String(utcM).padStart(2,'0');
+    } catch(e) { return s; }
+  }
+
+  // Si viene como número decimal de Excel (ej. 0.375 = 09:00)
+  const num = parseFloat(s);
+  if (!isNaN(num) && num >= 0 && num < 1) {
+    const totalMin = Math.round(num * 24 * 60);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+  }
+
+  return s;
+}
+
+// ══════════════════════════════════════════════════════
+//  LIMPIAR FORMATO DE FECHA
+//  Sheets puede devolver fechas como ISO o como número serial
+// ══════════════════════════════════════════════════════
+function limpiarFecha(valor) {
+  if (!valor) return '—';
+  const s = String(valor);
+
+  // Ya viene como texto legible dd/mm/yyyy o similar
+  if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(s)) return s;
+
+  // Viene como ISO Date
+  if (s.includes('T') || s.includes('-')) {
+    try {
+      const d = new Date(s);
+      if (!isNaN(d)) return d.toLocaleDateString('es-MX', {day:'2-digit',month:'2-digit',year:'numeric'});
+    } catch(e) {}
+  }
+
+  // Número serial de Excel (días desde 1900-01-01)
+  const num = parseFloat(s);
+  if (!isNaN(num) && num > 1000) {
+    const d = new Date((num - 25569) * 86400 * 1000);
+    return d.toLocaleDateString('es-MX', {day:'2-digit',month:'2-digit',year:'numeric'});
+  }
+
+  return s;
 }
 </script>
 </body>
